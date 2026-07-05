@@ -1,9 +1,20 @@
+import { DrizzleError } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
-import { env } from '@/lib/env'
 import { secureHeaders } from 'hono/secure-headers'
+import { env } from '@/lib/env'
+import { HttpStatus } from './lib/const'
+import { ContentfulStatusCode } from 'hono/utils/http-status'
 import { ApiError, ApiResponse } from './lib/http'
-import { DrizzleError } from 'drizzle-orm'
+
+import comment from './routes/comment'
+import dashboard from './routes/dashboard'
+import like from './routes/like'
+import playlist from './routes/playlist'
+import subscription from './routes/subscription'
+import tweet from './routes/tweet'
+import user from './routes/user'
+import video from './routes/video'
 
 const app = new Hono({ strict: false }).basePath('/api/v1')
 
@@ -22,29 +33,14 @@ app.use(
   })
 )
 
-/**
- * IMPORT ROUTES
- */
-import authRouter from './routes/auth.route'
-import userRouter from './routes/user.route'
-import tweetRouter from './routes/tweet.route'
-import subscriptionRouter from './routes/subscription.route'
-import videoRouter from './routes/video.route'
-import commentRouter from './routes/comment.route'
-import likeRouter from './routes/like.route'
-import playlistRouter from './routes/playlist.route'
-import dashboardRouter from './routes/dashboard.route'
-import { HttpStatus } from './lib/const'
-
-app.route('/auth', authRouter)
-app.route('/users', userRouter)
-app.route('/tweets', tweetRouter)
-app.route('/subscriptions', subscriptionRouter)
-app.route('/videos', videoRouter)
-app.route('/comments', commentRouter)
-app.route('/likes', likeRouter)
-app.route('/playlist', playlistRouter)
-app.route('/dashboard', dashboardRouter)
+app.route('/users', user)
+app.route('/tweets', tweet)
+app.route('/subscriptions', subscription)
+app.route('/videos', video)
+app.route('/comments', comment)
+app.route('/likes', like)
+app.route('/playlist', playlist)
+app.route('/dashboard', dashboard)
 
 app.get('/healthcheck', c =>
   c.json(new ApiResponse(HttpStatus.OK, null, 'Health Check Passed'))
@@ -69,8 +65,9 @@ app.onError((err, c) => {
       ...apiError,
       message: apiError.message,
     },
-    apiError.statusCode as any
+    apiError.statusCode as ContentfulStatusCode
   )
 })
 
 export default app
+export type AppType = typeof app

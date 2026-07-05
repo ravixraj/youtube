@@ -1,23 +1,18 @@
+import { and, eq } from 'drizzle-orm'
 import { Hono } from 'hono'
-import { authMiddleware as verifyJWT } from '@/middlewares/auth.middleware'
-import type { Context } from 'hono'
 import { db } from '@/db'
 import { subscriptions, users } from '@/db/schema'
-import { eq, and } from 'drizzle-orm'
-import { ok, ApiError } from '@/lib/http'
 import { HttpStatus } from '@/lib/const'
+import { ApiError, ok } from '@/lib/http'
+import { authMiddleware } from '@/middlewares/auth.middleware'
 
-const subscriptionRouter = new Hono()
-subscriptionRouter.use(verifyJWT)
+const subscription = new Hono<{ Variables: { user: string } }>()
 
-// Toggle subscription (uses channelId param)
-subscriptionRouter.post('/c/:channelId', async (c: Context) => {
+subscription.use(authMiddleware)
+
+subscription.post('/c/:channelId', async c => {
   const userId = c.get('user')
   const channelId = c.req.param('channelId')
-
-  if (!channelId) {
-    throw new ApiError(HttpStatus.BAD_REQUEST, 'Channel ID is required')
-  }
 
   if (userId === channelId) {
     throw new ApiError(
@@ -26,7 +21,6 @@ subscriptionRouter.post('/c/:channelId', async (c: Context) => {
     )
   }
 
-  // Check if channel exists
   const [channel] = await db
     .select()
     .from(users)
@@ -37,7 +31,6 @@ subscriptionRouter.post('/c/:channelId', async (c: Context) => {
     throw new ApiError(HttpStatus.NOT_FOUND, 'Channel not found')
   }
 
-  // Check if already subscribed
   const [existingSubscription] = await db
     .select()
     .from(subscriptions)
@@ -50,7 +43,6 @@ subscriptionRouter.post('/c/:channelId', async (c: Context) => {
     .limit(1)
 
   if (existingSubscription) {
-    // Unsubscribe
     await db
       .delete(subscriptions)
       .where(
@@ -61,21 +53,19 @@ subscriptionRouter.post('/c/:channelId', async (c: Context) => {
       )
 
     return ok(c, { subscribed: false }, 'Unsubscribed successfully')
-  } else {
-    // Subscribe
-    await db.insert(subscriptions).values({
-      id: crypto.randomUUID(),
-      subscriberId: userId,
-      channelId,
-      updatedAt: new Date().toISOString(),
-    })
-
-    return ok(c, { subscribed: true }, 'Subscribed successfully')
   }
+
+  await db.insert(subscriptions).values({
+    id: crypto.randomUUID(),
+    subscriberId: userId,
+    channelId,
+    updatedAt: new Date().toISOString(),
+  })
+
+  return ok(c, { subscribed: true }, 'Subscribed successfully')
 })
 
-// Get channels I am subscribed to
-subscriptionRouter.get('/channels', async (c: Context) => {
+subscription.get('/channels', async c => {
   const userId = c.get('user')
 
   const subscribedChannels = await db
@@ -96,13 +86,8 @@ subscriptionRouter.get('/channels', async (c: Context) => {
   )
 })
 
-// Get subscribers of a channel (uses channelId param)
-subscriptionRouter.get('/u/:channelId', async (c: Context) => {
+subscription.get('/u/:channelId', async c => {
   const channelId = c.req.param('channelId')
-
-  if (!channelId) {
-    throw new ApiError(HttpStatus.BAD_REQUEST, 'Channel ID is required')
-  }
 
   const subscribers = await db
     .select({
@@ -118,4 +103,5 @@ subscriptionRouter.get('/u/:channelId', async (c: Context) => {
   return ok(c, { subscribers }, 'Subscribers retrieved successfully')
 })
 
-export default subscriptionRouter
+export default subscription
+export type SubscriptionType = typeof subscription

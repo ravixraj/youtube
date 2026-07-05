@@ -1,17 +1,16 @@
+import { eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { db } from '@/db'
-import { videos, users, subscriptions } from '@/db/schema'
-import { eq, and } from 'drizzle-orm'
-import { ok, ApiError } from '@/lib/http'
+import { subscriptions, users, videos } from '@/db/schema'
 import { HttpStatus } from '@/lib/const'
-import type { Context } from 'hono'
-import { authMiddleware as verifyJWT } from '@/middlewares/auth.middleware'
+import { ApiError, ok } from '@/lib/http'
+import { authMiddleware } from '@/middlewares/auth.middleware'
 
-const dashboardRouter = new Hono()
+const dashboard = new Hono<{ Variables: { user: string } }>()
 
-dashboardRouter.use(verifyJWT)
+dashboard.use(authMiddleware)
 
-dashboardRouter.get('/stats', async (c: Context) => {
+dashboard.get('/stats', async c => {
   const userId = c.get('user')
 
   const [user] = await db
@@ -24,35 +23,19 @@ dashboardRouter.get('/stats', async (c: Context) => {
     throw new ApiError(HttpStatus.NOT_FOUND, 'User not found')
   }
 
-  // Get total videos
-  const totalVideos = await db
+  const userVideos = await db
     .select()
     .from(videos)
     .where(eq(videos.userId, userId))
-    .then(res => res.length)
 
-  // Get total views
-  const totalViews = await db
-    .select()
-    .from(videos)
-    .where(eq(videos.userId, userId))
-    .then(res => res.reduce((sum, video) => sum + (video.viewCount || 0), 0))
+  const totalVideos = userVideos.length
+  const totalViews = userVideos.reduce((sum, v) => sum + (v.viewCount || 0), 0)
+  const totalLikes = userVideos.reduce((sum, v) => sum + (v.likeCount || 0), 0)
+  const totalComments = userVideos.reduce(
+    (sum, v) => sum + (v.commentCount || 0),
+    0
+  )
 
-  // Get total likes
-  const totalLikes = await db
-    .select()
-    .from(videos)
-    .where(eq(videos.userId, userId))
-    .then(res => res.reduce((sum, video) => sum + (video.likeCount || 0), 0))
-
-  // Get total comments
-  const totalComments = await db
-    .select()
-    .from(videos)
-    .where(eq(videos.userId, userId))
-    .then(res => res.reduce((sum, video) => sum + (video.commentCount || 0), 0))
-
-  // Get subscriber count
   const subscriberCount = await db
     .select()
     .from(subscriptions)
@@ -74,10 +57,8 @@ dashboardRouter.get('/stats', async (c: Context) => {
   )
 })
 
-dashboardRouter.get('/videos', async (c: Context) => {
+dashboard.get('/videos', async c => {
   const userId = c.get('user')
-
-  const { page = '1', limit = '10', isPublished } = c.req.query()
 
   const channelVideos = await db
     .select({
@@ -104,4 +85,5 @@ dashboardRouter.get('/videos', async (c: Context) => {
   )
 })
 
-export default dashboardRouter
+export default dashboard
+export type DashboardType = typeof dashboard

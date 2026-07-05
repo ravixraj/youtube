@@ -1,17 +1,17 @@
+import { sql } from 'drizzle-orm'
 import {
-  pgTable,
-  index,
+  boolean,
   foreignKey,
-  uuid,
-  varchar,
+  index,
+  integer,
+  pgTable,
+  primaryKey,
+  text,
   timestamp,
   uniqueIndex,
-  text,
-  integer,
-  boolean,
-  primaryKey,
+  uuid,
+  varchar,
 } from 'drizzle-orm/pg-core'
-import { sql } from 'drizzle-orm'
 
 export const tweets = pgTable(
   'tweets',

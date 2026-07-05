@@ -1,121 +1,122 @@
-import { relations } from 'drizzle-orm/relations'
-import {
-  users,
-  tweets,
-  subscriptions,
-  playlists,
-  comments,
-  videos,
-  playlistToVideo,
-  videoLikes,
-  tweetLikes,
-} from './schema'
+import { defineRelations } from "drizzle-orm";
+import * as schema from "./schema";
 
-export const tweetsRelations = relations(tweets, ({ one, many }) => ({
-  user: one(users, {
-    fields: [tweets.userId],
-    references: [users.id],
-  }),
-  tweetLikes: many(tweetLikes),
-}))
-
-export const usersRelations = relations(users, ({ many }) => ({
-  tweets: many(tweets),
-  subscriptions_subscriberId: many(subscriptions, {
-    relationName: 'subscriptions_subscriberId_users_id',
-  }),
-  subscriptions_channelId: many(subscriptions, {
-    relationName: 'subscriptions_channelId_users_id',
-  }),
-  playlists: many(playlists),
-  comments: many(comments),
-  videos: many(videos),
-  videoLikes: many(videoLikes),
-  tweetLikes: many(tweetLikes),
-}))
-
-export const subscriptionsRelations = relations(subscriptions, ({ one }) => ({
-  user_subscriberId: one(users, {
-    fields: [subscriptions.subscriberId],
-    references: [users.id],
-    relationName: 'subscriptions_subscriberId_users_id',
-  }),
-  user_channelId: one(users, {
-    fields: [subscriptions.channelId],
-    references: [users.id],
-    relationName: 'subscriptions_channelId_users_id',
-  }),
-}))
-
-export const playlistsRelations = relations(playlists, ({ one, many }) => ({
-  user: one(users, {
-    fields: [playlists.userId],
-    references: [users.id],
-  }),
-  playlistToVideos: many(playlistToVideo),
-}))
-
-export const commentsRelations = relations(comments, ({ one, many }) => ({
-  user: one(users, {
-    fields: [comments.userId],
-    references: [users.id],
-  }),
-  video: one(videos, {
-    fields: [comments.videoId],
-    references: [videos.id],
-  }),
-  comment: one(comments, {
-    fields: [comments.parentCommentId],
-    references: [comments.id],
-    relationName: 'comments_parentCommentId_comments_id',
-  }),
-  comments: many(comments, {
-    relationName: 'comments_parentCommentId_comments_id',
-  }),
-}))
-
-export const videosRelations = relations(videos, ({ one, many }) => ({
-  comments: many(comments),
-  user: one(users, {
-    fields: [videos.userId],
-    references: [users.id],
-  }),
-  playlistToVideos: many(playlistToVideo),
-  videoLikes: many(videoLikes),
-}))
-
-export const playlistToVideoRelations = relations(
-  playlistToVideo,
-  ({ one }) => ({
-    playlist: one(playlists, {
-      fields: [playlistToVideo.a],
-      references: [playlists.id],
+export const relations = defineRelations(schema, (r) => ({
+  users: {
+    tweets: r.many.tweets(),
+    subscriptionsAsSubscriber: r.many.subscriptions({
+      from: r.users.id,
+      to: r.subscriptions.subscriberId,
+      alias: "subscriptions_subscriberId_users_id",
     }),
-    video: one(videos, {
-      fields: [playlistToVideo.b],
-      references: [videos.id],
+    subscriptionsAsChannel: r.many.subscriptions({
+      from: r.users.id,
+      to: r.subscriptions.channelId,
+      alias: "subscriptions_channelId_users_id",
     }),
-  })
-)
+    playlists: r.many.playlists(),
+    comments: r.many.comments(),
+    videos: r.many.videos(),
+    videoLikes: r.many.videoLikes(),
+    tweetLikes: r.many.tweetLikes(),
+  },
 
-export const videoLikesRelations = relations(videoLikes, ({ one }) => ({
-  user: one(users, {
-    fields: [videoLikes.userId],
-    references: [users.id],
-  }),
-  video: one(videos, {
-    fields: [videoLikes.videoId],
-    references: [videos.id],
-  }),
-}))
+  tweets: {
+    user: r.one.users({
+      from: r.tweets.userId,
+      to: r.users.id,
+    }),
+    tweetLikes: r.many.tweetLikes(),
+  },
 
-export const tweetLikesRelations = relations(tweetLikes, ({ one }) => ({
-  user: one(users, {
-    fields: [tweetLikes.userId],
-    references: [users.id],
-  }),
-  tweet: one(tweets, {
-    fields: [tweetLikes.tweetId],
-    references: [tweets.id],
-  }),
-}))
+  subscriptions: {
+    subscriber: r.one.users({
+      from: r.subscriptions.subscriberId,
+      to: r.users.id,
+      alias: "subscriptions_subscriberId_users_id",
+    }),
+    channel: r.one.users({
+      from: r.subscriptions.channelId,
+      to: r.users.id,
+      alias: "subscriptions_channelId_users_id",
+    }),
+  },
+
+  playlists: {
+    user: r.one.users({
+      from: r.playlists.userId,
+      to: r.users.id,
+    }),
+    videos: r.many.videos({
+      from: r.playlists.id.through(r.playlistToVideo.a),
+      to: r.videos.id.through(r.playlistToVideo.b),
+    }),
+  },
+
+  comments: {
+    user: r.one.users({
+      from: r.comments.userId,
+      to: r.users.id,
+    }),
+    video: r.one.videos({
+      from: r.comments.videoId,
+      to: r.videos.id,
+    }),
+    parentComment: r.one.comments({
+      from: r.comments.parentCommentId,
+      to: r.comments.id,
+      alias: "comments_parentCommentId_comments_id",
+    }),
+    replies: r.many.comments({
+      from: r.comments.id,
+      to: r.comments.parentCommentId,
+      alias: "comments_parentCommentId_comments_id",
+    }),
+  },
+
+  videos: {
+    user: r.one.users({
+      from: r.videos.userId,
+      to: r.users.id,
+    }),
+    comments: r.many.comments(),
+    playlists: r.many.playlists({
+      from: r.videos.id.through(r.playlistToVideo.b),
+      to: r.playlists.id.through(r.playlistToVideo.a),
+    }),
+    videoLikes: r.many.videoLikes(),
+  },
+
+  playlistToVideo: {
+    playlist: r.one.playlists({
+      from: r.playlistToVideo.a,
+      to: r.playlists.id,
+    }),
+    video: r.one.videos({
+      from: r.playlistToVideo.b,
+      to: r.videos.id,
+    }),
+  },
+
+  videoLikes: {
+    user: r.one.users({
+      from: r.videoLikes.userId,
+      to: r.users.id,
+    }),
+    video: r.one.videos({
+      from: r.videoLikes.videoId,
+      to: r.videos.id,
+    }),
+  },
+
+  tweetLikes: {
+    user: r.one.users({
+      from: r.tweetLikes.userId,
+      to: r.users.id,
+    }),
+    tweet: r.one.tweets({
+      from: r.tweetLikes.tweetId,
+      to: r.tweets.id,
+    }),
+  },
+}));
