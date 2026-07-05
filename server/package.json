@@ -2,7 +2,7 @@
   "name": "server",
   "type": "module",
   "scripts": {
-    "start": "bun run --hot src/adapter/index.ts",
+    "start": "bun run --hot src/index.ts",
     "fmt": "pnpm exec biome format --write ./src",
     "db:gen": "pnpm dlx prisma generate"
   },
