@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm'
+import { eq, sql } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { db } from '@/db'
 import { subscriptions, users, videos } from '@/db/schema'
@@ -23,34 +23,30 @@ dashboard.get('/stats', async c => {
     throw new ApiError(HttpStatus.NOT_FOUND, 'User not found')
   }
 
-  const userVideos = await db
-    .select()
+  const [stats] = await db
+    .select({
+      totalVideos: sql<number>`count(*)::int`,
+      totalViews: sql<number>`coalesce(sum(${videos.viewCount}), 0)::int`,
+      totalLikes: sql<number>`coalesce(sum(${videos.likeCount}), 0)::int`,
+      totalComments: sql<number>`coalesce(sum(${videos.commentCount}), 0)::int`,
+    })
     .from(videos)
     .where(eq(videos.userId, userId))
 
-  const totalVideos = userVideos.length
-  const totalViews = userVideos.reduce((sum, v) => sum + (v.viewCount || 0), 0)
-  const totalLikes = userVideos.reduce((sum, v) => sum + (v.likeCount || 0), 0)
-  const totalComments = userVideos.reduce(
-    (sum, v) => sum + (v.commentCount || 0),
-    0
-  )
-
-  const subscriberCount = await db
-    .select()
+  const [subscriberResult] = await db
+    .select({ count: sql<number>`count(*)::int` })
     .from(subscriptions)
     .where(eq(subscriptions.channelId, userId))
-    .then(res => res.length)
 
   return ok(
     c,
     {
       channelStats: {
-        totalVideos,
-        totalViews,
-        totalLikes,
-        totalComments,
-        subscriberCount,
+        totalVideos: stats?.totalVideos ?? 0,
+        totalViews: stats?.totalViews ?? 0,
+        totalLikes: stats?.totalLikes ?? 0,
+        totalComments: stats?.totalComments ?? 0,
+        subscriberCount: subscriberResult?.count ?? 0,
       },
     },
     'Channel statistics retrieved successfully'
@@ -60,23 +56,24 @@ dashboard.get('/stats', async c => {
 dashboard.get('/videos', async c => {
   const userId = c.get('user')
 
-  const channelVideos = await db
-    .select({
-      id: videos.id,
-      title: videos.title,
-      thumbnail: videos.thumbnail,
-      videoFile: videos.videoFile,
-      duration: videos.duration,
-      viewCount: videos.viewCount,
-      likeCount: videos.likeCount,
-      commentCount: videos.commentCount,
-      isPublished: videos.isPublished,
-      publishedAt: videos.publishedAt,
-      createdAt: videos.createdAt,
-      updatedAt: videos.updatedAt,
-    })
-    .from(videos)
-    .where(eq(videos.userId, userId))
+  const channelVideos = await db.query.videos.findMany({
+    columns: {
+      id: true,
+      title: true,
+      thumbnail: true,
+      videoFile: true,
+      duration: true,
+      viewCount: true,
+      likeCount: true,
+      commentCount: true,
+      isPublished: true,
+      publishedAt: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+    where: eq(videos.userId, userId),
+    orderBy: (t, { desc: d }) => d(t.createdAt),
+  })
 
   return ok(
     c,

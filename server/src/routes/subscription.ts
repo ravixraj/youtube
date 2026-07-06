@@ -68,20 +68,26 @@ subscription.post('/c/:channelId', async c => {
 subscription.get('/channels', async c => {
   const userId = c.get('user')
 
-  const subscribedChannels = await db
-    .select({
-      id: users.id,
-      username: users.username,
-      fullname: users.fullname,
-      avatar: users.avatar,
-    })
-    .from(subscriptions)
-    .leftJoin(users, eq(subscriptions.channelId, users.id))
-    .where(eq(subscriptions.subscriberId, userId))
+  const subscribedChannels = await db.query.subscriptions.findMany({
+    columns: {},
+    with: {
+      channel: {
+        columns: {
+          id: true,
+          username: true,
+          fullname: true,
+          avatar: true,
+        },
+      },
+    },
+    where: eq(subscriptions.subscriberId, userId),
+  })
+
+  const channels = subscribedChannels.map(s => s.channel)
 
   return ok(
     c,
-    { channels: subscribedChannels },
+    { channels },
     'Subscribed channels retrieved successfully'
   )
 })
@@ -89,16 +95,22 @@ subscription.get('/channels', async c => {
 subscription.get('/u/:channelId', async c => {
   const channelId = c.req.param('channelId')
 
-  const subscribers = await db
-    .select({
-      id: users.id,
-      username: users.username,
-      fullname: users.fullname,
-      avatar: users.avatar,
-    })
-    .from(subscriptions)
-    .leftJoin(users, eq(subscriptions.subscriberId, users.id))
-    .where(eq(subscriptions.channelId, channelId))
+  const subscriberRows = await db.query.subscriptions.findMany({
+    columns: {},
+    with: {
+      subscriber: {
+        columns: {
+          id: true,
+          username: true,
+          fullname: true,
+          avatar: true,
+        },
+      },
+    },
+    where: eq(subscriptions.channelId, channelId),
+  })
+
+  const subscribers = subscriberRows.map(s => s.subscriber)
 
   return ok(c, { subscribers }, 'Subscribers retrieved successfully')
 })

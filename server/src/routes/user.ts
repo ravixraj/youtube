@@ -87,7 +87,7 @@ const user = new Hono<{ Variables: { user: string } }>()
 
 user.post('/register', zValidator('form', registerSchema), async c => {
   const { username, fullname, email, password, avatar, coverImage } =
-    registerSchema.parse(await c.req.parseBody())
+    c.req.valid('form')
 
   const existing = await db
     .select({ id: users })
@@ -146,23 +146,22 @@ user.post('/register', zValidator('form', registerSchema), async c => {
 })
 
 user.post('/login', zValidator('json', loginSchema), async c => {
-  const { username, password } = loginSchema.parse(await c.req.json())
+  const { username, password } = c.req.valid('json')
 
-  const [userRecord] = await db
-    .select({
-      id: users.id,
-      username: users.username,
-      fullname: users.fullname,
-      email: users.email,
-      password: users.password,
-      avatar: users.avatar,
-      coverImage: users.coverImage,
-      createdAt: users.createdAt,
-      updatedAt: users.updatedAt,
-    })
-    .from(users)
-    .where(or(eq(users.username, username), eq(users.email, username)))
-    .limit(1)
+  const userRecord = await db.query.users.findFirst({
+    columns: {
+      id: true,
+      username: true,
+      fullname: true,
+      email: true,
+      password: true,
+      avatar: true,
+      coverImage: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+    where: or(eq(users.username, username), eq(users.email, username)),
+  })
 
   if (!userRecord) {
     throw new ApiError(HttpStatus.UNAUTHORIZED, 'Invalid username or password')
@@ -204,7 +203,7 @@ user.post(
 )
 
 user.post('/refresh-token', zValidator('json', refreshTokenSchema), async c => {
-  const { refreshToken } = refreshTokenSchema.parse(await c.req.json())
+  const { refreshToken } = c.req.valid('json')
 
   const userPayload = await verifyRefreshToken(refreshToken)
 
@@ -214,14 +213,13 @@ user.post('/refresh-token', zValidator('json', refreshTokenSchema), async c => {
 
   const userId = userPayload.userId
 
-  const [userRecord] = await db
-    .select({
-      id: users.id,
-      refreshToken: users.refreshToken,
-    })
-    .from(users)
-    .where(eq(users.id, userId))
-    .limit(1)
+  const userRecord = await db.query.users.findFirst({
+    columns: {
+      id: true,
+      refreshToken: true,
+    },
+    where: eq(users.id, userId),
+  })
 
   if (!userRecord || userRecord.refreshToken !== refreshToken) {
     throw new ApiError(HttpStatus.UNAUTHORIZED, 'Refresh token not recognized')
@@ -257,18 +255,15 @@ user.post(
   zValidator('json', changePasswordSchema),
   async c => {
     const userId = c.get('user')
-    const { currentPassword, newPassword } = changePasswordSchema.parse(
-      await c.req.json()
-    )
+    const { currentPassword, newPassword } = c.req.valid('json')
 
-    const [userRecord] = await db
-      .select({
-        id: users.id,
-        password: users.password,
-      })
-      .from(users)
-      .where(eq(users.id, userId))
-      .limit(1)
+    const userRecord = await db.query.users.findFirst({
+      columns: {
+        id: true,
+        password: true,
+      },
+      where: eq(users.id, userId),
+    })
 
     if (!userRecord) {
       throw new ApiError(HttpStatus.NOT_FOUND, 'User not found')
@@ -299,20 +294,19 @@ user.use('/current-user', authMiddleware)
 user.get('/current-user', async c => {
   const userId = c.get('user')
 
-  const [userRecord] = await db
-    .select({
-      id: users.id,
-      username: users.username,
-      fullname: users.fullname,
-      email: users.email,
-      avatar: users.avatar,
-      coverImage: users.coverImage,
-      createdAt: users.createdAt,
-      updatedAt: users.updatedAt,
-    })
-    .from(users)
-    .where(eq(users.id, userId))
-    .limit(1)
+  const userRecord = await db.query.users.findFirst({
+    columns: {
+      id: true,
+      username: true,
+      fullname: true,
+      email: true,
+      avatar: true,
+      coverImage: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+    where: eq(users.id, userId),
+  })
 
   if (!userRecord) {
     throw new ApiError(HttpStatus.NOT_FOUND, 'User not found')
@@ -329,9 +323,7 @@ user.patch(
   zValidator('json', updateAccountDetailsSchema),
   async c => {
     const userId = c.get('user')
-    const { fullname, username, email } = updateAccountDetailsSchema.parse(
-      await c.req.json()
-    )
+    const { fullname, username, email } = c.req.valid('json')
 
     if (email || username) {
       const conditions = []
@@ -382,9 +374,7 @@ user.patch(
   zValidator('form', z.object({ avatar: imageFile })),
   async c => {
     const userId = c.get('user')
-    const { avatar } = z
-      .object({ avatar: imageFile })
-      .parse(await c.req.parseBody())
+    const { avatar } = c.req.valid('form')
 
     if (!(avatar instanceof File)) {
       throw new ApiError(
@@ -423,9 +413,7 @@ user.patch(
   zValidator('form', z.object({ coverImage: imageFile })),
   async c => {
     const userId = c.get('user')
-    const { coverImage } = z
-      .object({ coverImage: imageFile })
-      .parse(await c.req.parseBody())
+    const { coverImage } = c.req.valid('form')
 
     if (!(coverImage instanceof File)) {
       throw new ApiError(
@@ -461,20 +449,19 @@ user.patch(
 user.get('/c/:username', async c => {
   const username = c.req.param('username')
 
-  const [channelUser] = await db
-    .select({
-      id: users.id,
-      fullname: users.fullname,
-      username: users.username,
-      email: users.email,
-      avatar: users.avatar,
-      coverImage: users.coverImage,
-      createdAt: users.createdAt,
-      updatedAt: users.updatedAt,
-    })
-    .from(users)
-    .where(eq(users.username, username))
-    .limit(1)
+  const channelUser = await db.query.users.findFirst({
+    columns: {
+      id: true,
+      fullname: true,
+      username: true,
+      email: true,
+      avatar: true,
+      coverImage: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+    where: eq(users.username, username),
+  })
 
   if (!channelUser) {
     throw new ApiError(HttpStatus.NOT_FOUND, 'User not found')

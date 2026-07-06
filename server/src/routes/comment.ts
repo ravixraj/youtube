@@ -1,8 +1,8 @@
-import { desc, eq } from 'drizzle-orm'
+import { eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { db } from '@/db'
-import { comments, users, videos } from '@/db/schema'
+import { comments, videos } from '@/db/schema'
 import { HttpStatus } from '@/lib/const'
 import { ApiError, created, ok } from '@/lib/http'
 import { zValidator } from '@/lib/zValidator'
@@ -37,32 +37,31 @@ comment.get('/:videoId', async c => {
   const offset = (normalizedPage - 1) * normalizedLimit
 
   const [total, videoComments] = await Promise.all([
-    db
-      .select({ count: comments.id })
-      .from(comments)
-      .where(eq(comments.videoId, videoId))
-      .then(res => res.length),
-    db
-      .select({
-        id: comments.id,
-        userId: comments.userId,
-        videoId: comments.videoId,
-        content: comments.content,
-        createdAt: comments.createdAt,
-        updatedAt: comments.updatedAt,
+    db.$count(comments, eq(comments.videoId, videoId)),
+    db.query.comments.findMany({
+      columns: {
+        id: true,
+        userId: true,
+        videoId: true,
+        content: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+      with: {
         user: {
-          id: users.id,
-          username: users.username,
-          fullname: users.fullname,
-          avatar: users.avatar,
+          columns: {
+            id: true,
+            username: true,
+            fullname: true,
+            avatar: true,
+          },
         },
-      })
-      .from(comments)
-      .leftJoin(users, eq(comments.userId, users.id))
-      .where(eq(comments.videoId, videoId))
-      .orderBy(desc(comments.createdAt))
-      .limit(normalizedLimit)
-      .offset(offset),
+      },
+      where: eq(comments.videoId, videoId),
+      orderBy: (t, { desc: d }) => d(t.createdAt),
+      limit: normalizedLimit,
+      offset,
+    }),
   ])
 
   const totalPages = Math.ceil(total / normalizedLimit)

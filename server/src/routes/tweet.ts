@@ -1,8 +1,8 @@
-import { desc, eq } from 'drizzle-orm'
+import { eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { db } from '@/db'
-import { tweets, users } from '@/db/schema'
+import { tweets } from '@/db/schema'
 import { HttpStatus } from '@/lib/const'
 import { ApiError, created, ok } from '@/lib/http'
 import { zValidator } from '@/lib/zValidator'
@@ -32,31 +32,30 @@ tweet.get('/user/:userId', async c => {
   const offset = (normalizedPage - 1) * normalizedLimit
 
   const [total, userTweets] = await Promise.all([
-    db
-      .select({ count: tweets.id })
-      .from(tweets)
-      .where(eq(tweets.userId, userId))
-      .then(res => res.length),
-    db
-      .select({
-        id: tweets.id,
-        userId: tweets.userId,
-        content: tweets.content,
-        createdAt: tweets.createdAt,
-        updatedAt: tweets.updatedAt,
+    db.$count(tweets, eq(tweets.userId, userId)),
+    db.query.tweets.findMany({
+      columns: {
+        id: true,
+        userId: true,
+        content: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+      with: {
         user: {
-          id: users.id,
-          username: users.username,
-          fullname: users.fullname,
-          avatar: users.avatar,
+          columns: {
+            id: true,
+            username: true,
+            fullname: true,
+            avatar: true,
+          },
         },
-      })
-      .from(tweets)
-      .leftJoin(users, eq(tweets.userId, users.id))
-      .where(eq(tweets.userId, userId))
-      .orderBy(desc(tweets.createdAt))
-      .limit(normalizedLimit)
-      .offset(offset),
+      },
+      where: eq(tweets.userId, userId),
+      orderBy: (t, { desc: d }) => d(t.createdAt),
+      limit: normalizedLimit,
+      offset,
+    }),
   ])
 
   const totalPages = Math.ceil(total / normalizedLimit)

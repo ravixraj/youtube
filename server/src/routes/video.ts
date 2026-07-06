@@ -1,8 +1,8 @@
-import { and, asc, desc, eq, ilike, or, type SQL } from 'drizzle-orm'
+import { and, eq, ilike, or, sql, type SQL } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { db } from '@/db'
-import { users, videos } from '@/db/schema'
+import { videos } from '@/db/schema'
 import { uploadToCloudinary } from '@/lib/cloudinary'
 import { ACCEPTED_MIMES, HttpStatus, MAX_IMAGE_BYTES } from '@/lib/const'
 import { coerceFile, parseRequestBody } from '@/lib/helper'
@@ -74,45 +74,45 @@ video.get('/', zValidator('query', searchVideosSchema), async c => {
   }
   whereConditions.push(eq(videos.isPublished, true))
 
-  const orderByClause =
-    sortOrder === 'asc'
-      ? asc(videos[sortBy as keyof typeof videos._.columns])
-      : desc(videos[sortBy as keyof typeof videos._.columns])
+  const where =
+    whereConditions.length > 0 ? and(...whereConditions) : undefined
 
   const [total, videoList] = await Promise.all([
-    db
-      .select({ count: videos.id })
-      .from(videos)
-      .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
-      .then(res => res.length),
-    db
-      .select({
-        id: videos.id,
-        title: videos.title,
-        description: videos.description,
-        thumbnail: videos.thumbnail,
-        videoFile: videos.videoFile,
-        duration: videos.duration,
-        viewCount: videos.viewCount,
-        likeCount: videos.likeCount,
-        commentCount: videos.commentCount,
-        isPublished: videos.isPublished,
-        publishedAt: videos.publishedAt,
-        createdAt: videos.createdAt,
-        updatedAt: videos.updatedAt,
+    db.$count(videos, where),
+    db.query.videos.findMany({
+      columns: {
+        id: true,
+        title: true,
+        description: true,
+        thumbnail: true,
+        videoFile: true,
+        duration: true,
+        viewCount: true,
+        likeCount: true,
+        commentCount: true,
+        isPublished: true,
+        publishedAt: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+      with: {
         user: {
-          id: users.id,
-          username: users.username,
-          fullname: users.fullname,
-          avatar: users.avatar,
+          columns: {
+            id: true,
+            username: true,
+            fullname: true,
+            avatar: true,
+          },
         },
-      })
-      .from(videos)
-      .leftJoin(users, eq(videos.userId, users.id))
-      .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
-      .orderBy(orderByClause)
-      .limit(normalizedLimit)
-      .offset(offset),
+      },
+      where,
+      orderBy: (t, { asc: a, desc: d }) => {
+        const col = t[sortBy as keyof typeof t]
+        return sortOrder === 'asc' ? a(col) : d(col)
+      },
+      limit: normalizedLimit,
+      offset,
+    }),
   ])
 
   const totalPages = Math.ceil(total / normalizedLimit)
@@ -135,32 +135,34 @@ video.get('/', zValidator('query', searchVideosSchema), async c => {
 video.get('/:videoId', async c => {
   const videoId = c.req.param('videoId')
 
-  const [existingVideo] = await db
-    .select({
-      id: videos.id,
-      title: videos.title,
-      description: videos.description,
-      thumbnail: videos.thumbnail,
-      videoFile: videos.videoFile,
-      duration: videos.duration,
-      viewCount: videos.viewCount,
-      likeCount: videos.likeCount,
-      commentCount: videos.commentCount,
-      isPublished: videos.isPublished,
-      publishedAt: videos.publishedAt,
-      createdAt: videos.createdAt,
-      updatedAt: videos.updatedAt,
+  const existingVideo = await db.query.videos.findFirst({
+    columns: {
+      id: true,
+      title: true,
+      description: true,
+      thumbnail: true,
+      videoFile: true,
+      duration: true,
+      viewCount: true,
+      likeCount: true,
+      commentCount: true,
+      isPublished: true,
+      publishedAt: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+    with: {
       user: {
-        id: users.id,
-        username: users.username,
-        fullname: users.fullname,
-        avatar: users.avatar,
+        columns: {
+          id: true,
+          username: true,
+          fullname: true,
+          avatar: true,
+        },
       },
-    })
-    .from(videos)
-    .leftJoin(users, eq(videos.userId, users.id))
-    .where(eq(videos.id, videoId))
-    .limit(1)
+    },
+    where: eq(videos.id, videoId),
+  })
 
   if (!existingVideo) {
     throw new ApiError(HttpStatus.NOT_FOUND, 'Video not found')

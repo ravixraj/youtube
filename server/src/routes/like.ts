@@ -5,7 +5,6 @@ import {
   comments,
   tweetLikes,
   tweets,
-  users,
   videoLikes,
   videos,
 } from '@/db/schema'
@@ -122,28 +121,37 @@ like.post('/toggle/t/:tweetId', async c => {
 like.get('/videos', async c => {
   const userId = c.get('user')
 
-  const likedVideos = await db
-    .select({
-      id: videos.id,
-      title: videos.title,
-      thumbnail: videos.thumbnail,
-      videoFile: videos.videoFile,
-      duration: videos.duration,
-      viewCount: videos.viewCount,
-      likeCount: videos.likeCount,
-      commentCount: videos.commentCount,
-      createdAt: videos.createdAt,
-      user: {
-        id: users.id,
-        username: users.username,
-        fullname: users.fullname,
-        avatar: users.avatar,
+  const likedRows = await db.query.videoLikes.findMany({
+    columns: {},
+    with: {
+      video: {
+        columns: {
+          id: true,
+          title: true,
+          thumbnail: true,
+          videoFile: true,
+          duration: true,
+          viewCount: true,
+          likeCount: true,
+          commentCount: true,
+          createdAt: true,
+        },
+        with: {
+          user: {
+            columns: {
+              id: true,
+              username: true,
+              fullname: true,
+              avatar: true,
+            },
+          },
+        },
       },
-    })
-    .from(videoLikes)
-    .leftJoin(videos, eq(videoLikes.videoId, videos.id))
-    .leftJoin(users, eq(videos.userId, users.id))
-    .where(eq(videoLikes.userId, userId))
+    },
+    where: eq(videoLikes.userId, userId),
+  })
+
+  const likedVideos = likedRows.map(l => l.video)
 
   return ok(c, { videos: likedVideos }, 'Liked videos retrieved successfully')
 })

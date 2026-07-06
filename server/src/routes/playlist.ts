@@ -1,8 +1,8 @@
-import { and, eq } from 'drizzle-orm'
+import { and, eq, sql } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { db } from '@/db'
-import { playlists, playlistToVideo, users, videos } from '@/db/schema'
+import { playlists, playlistToVideo, videos } from '@/db/schema'
 import { HttpStatus } from '@/lib/const'
 import { ApiError, created, ok } from '@/lib/http'
 import { zValidator } from '@/lib/zValidator'
@@ -57,53 +57,53 @@ playlist.post('/', zValidator('json', createPlaylistSchema), async c => {
 playlist.get('/:playlistId', async c => {
   const playlistId = c.req.param('playlistId')
 
-  const [existingPlaylist] = await db
-    .select({
-      id: playlists.id,
-      userId: playlists.userId,
-      name: playlists.name,
-      description: playlists.description,
-      createdAt: playlists.createdAt,
-      updatedAt: playlists.updatedAt,
-    })
-    .from(playlists)
-    .where(eq(playlists.id, playlistId))
-    .limit(1)
+  const existingPlaylist = await db.query.playlists.findFirst({
+    columns: {
+      id: true,
+      userId: true,
+      name: true,
+      description: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+    with: {
+      videos: {
+        columns: {
+          id: true,
+          title: true,
+          thumbnail: true,
+          videoFile: true,
+          duration: true,
+          viewCount: true,
+          likeCount: true,
+          commentCount: true,
+          createdAt: true,
+        },
+        with: {
+          user: {
+            columns: {
+              id: true,
+              username: true,
+              fullname: true,
+              avatar: true,
+            },
+          },
+        },
+      },
+    },
+    where: eq(playlists.id, playlistId),
+  })
 
   if (!existingPlaylist) {
     throw new ApiError(HttpStatus.NOT_FOUND, 'Playlist not found')
   }
-
-  const playlistVideos = await db
-    .select({
-      id: videos.id,
-      title: videos.title,
-      thumbnail: videos.thumbnail,
-      videoFile: videos.videoFile,
-      duration: videos.duration,
-      viewCount: videos.viewCount,
-      likeCount: videos.likeCount,
-      commentCount: videos.commentCount,
-      createdAt: videos.createdAt,
-      user: {
-        id: users.id,
-        username: users.username,
-        fullname: users.fullname,
-        avatar: users.avatar,
-      },
-    })
-    .from(playlistToVideo)
-    .leftJoin(videos, eq(playlistToVideo.b, videos.id))
-    .leftJoin(users, eq(videos.userId, users.id))
-    .where(eq(playlistToVideo.a, playlistId))
 
   return ok(
     c,
     {
       playlist: {
         ...existingPlaylist,
-        videoCount: playlistVideos.length,
-        videos: playlistVideos,
+        videoCount: existingPlaylist.videos.length,
       },
     },
     'Playlist retrieved successfully'
@@ -270,36 +270,25 @@ playlist.patch('/remove/:videoId/:playlistId', async c => {
 playlist.get('/user/:userId', async c => {
   const userId = c.req.param('userId')
 
-  const userPlaylists = await db
-    .select({
-      id: playlists.id,
-      userId: playlists.userId,
-      name: playlists.name,
-      description: playlists.description,
-      createdAt: playlists.createdAt,
-      updatedAt: playlists.updatedAt,
-    })
-    .from(playlists)
-    .where(eq(playlists.userId, userId))
-
-  const playlistsWithVideoCount = await Promise.all(
-    userPlaylists.map(async p => {
-      const videoCount = await db
-        .select()
-        .from(playlistToVideo)
-        .where(eq(playlistToVideo.a, p.id))
-        .then(res => res.length)
-
-      return {
-        ...p,
-        videoCount,
-      }
-    })
-  )
+  const userPlaylists = await db.query.playlists.findMany({
+    columns: {
+      id: true,
+      userId: true,
+      name: true,
+      description: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+    extras: {
+      videoCount: t =>
+        db.$count(playlistToVideo, eq(playlistToVideo.a, t.id)),
+    },
+    where: eq(playlists.userId, userId),
+  })
 
   return ok(
     c,
-    { playlists: playlistsWithVideoCount },
+    { playlists: userPlaylists },
     'User playlists retrieved successfully'
   )
 })
