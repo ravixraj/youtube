@@ -7,9 +7,11 @@ import { subscriptions, users } from '@/db/schema'
 import { HTTP, HttpPhrase, HttpStatus } from '@/lib/http'
 import { uploadToCloudinary } from '@/lib/cloudinary'
 import {
+  clearAuthCookies,
   generateAccessAndRefreshTokens,
   hashPassword,
   passwordMatch,
+  setAuthCookies,
   verifyAccessToken,
   verifyRefreshToken,
 } from '@/lib/helper'
@@ -88,13 +90,13 @@ user.post('/register', zValidator('form', registerSchema), async c => {
 
   const database = db(c.env.DATABASE_URL)
 
-  const existing = await database
+  const [existingUser] = await database
     .select({ id: users.id })
     .from(users)
     .where(or(eq(users.email, email), eq(users.username, username)))
     .limit(1)
 
-  if (existing.length > 0) {
+  if (existingUser) {
     throw HTTP.Error(
       HttpStatus.CONFLICT,
       'User with same email or username already exists'
@@ -130,7 +132,9 @@ user.post('/register', zValidator('form', registerSchema), async c => {
       fullname,
       email,
       password: hashedPassword,
+      // @ts-ignore
       avatar: avatarUpload?.url,
+      // @ts-ignore
       coverImage: coverUpload?.url,
     })
     .returning({
@@ -167,15 +171,17 @@ user.post('/login', zValidator('json', loginSchema), async c => {
       createdAt: true,
       updatedAt: true,
     },
-    where: or(eq(users.username, username), eq(users.email, username)),
+    where: {
+      username: username,
+    },
   })
 
   if (!userRecord) {
     throw HTTP.Error(HttpStatus.UNAUTHORIZED, 'Invalid username or password')
   }
 
-  const isValid = await passwordMatch(password, userRecord.password)
-  if (!isValid) {
+  const isMatch = await passwordMatch(password, userRecord.password)
+  if (!isMatch) {
     throw HTTP.Error(HttpStatus.UNAUTHORIZED, 'Invalid username or password')
   }
 
@@ -183,9 +189,9 @@ user.post('/login', zValidator('json', loginSchema), async c => {
     { userId: userRecord.id },
     {
       accessSecret: c.env.ACCESS_TOKEN_SECRET,
-      accessExpiry: Number(c.env.ACCESS_TOKEN_EXPIRY),
+      accessExpiry: c.env.ACCESS_TOKEN_EXPIRY,
       refreshSecret: c.env.REFRESH_TOKEN_SECRET,
-      refreshExpiry: Number(c.env.REFRESH_TOKEN_EXPIRY),
+      refreshExpiry: c.env.REFRESH_TOKEN_EXPIRY,
     }
   )
 
@@ -196,6 +202,8 @@ user.post('/login', zValidator('json', loginSchema), async c => {
       updatedAt: new Date().toISOString(),
     })
     .where(eq(users.id, userRecord.id))
+
+  setAuthCookies(c, tokens.accessToken, tokens.refreshToken)
 
   const { password: _, ...safeUser } = userRecord
 
@@ -225,7 +233,9 @@ user.post('/refresh-token', zValidator('json', refreshTokenSchema), async c => {
       id: true,
       refreshToken: true,
     },
-    where: eq(users.id, userId),
+    where: {
+      id: userId,
+    },
   })
 
   if (!userRecord || userRecord.refreshToken !== refreshToken) {
@@ -236,9 +246,9 @@ user.post('/refresh-token', zValidator('json', refreshTokenSchema), async c => {
     { userId: userRecord.id },
     {
       accessSecret: c.env.ACCESS_TOKEN_SECRET,
-      accessExpiry: Number(c.env.ACCESS_TOKEN_EXPIRY),
+      accessExpiry: c.env.ACCESS_TOKEN_EXPIRY,
       refreshSecret: c.env.REFRESH_TOKEN_SECRET,
-      refreshExpiry: Number(c.env.REFRESH_TOKEN_EXPIRY),
+      refreshExpiry: c.env.REFRESH_TOKEN_EXPIRY,
     }
   )
 
@@ -250,6 +260,8 @@ user.post('/refresh-token', zValidator('json', refreshTokenSchema), async c => {
     })
     .where(eq(users.id, userRecord.id))
 
+  setAuthCookies(c, tokens.accessToken, tokens.refreshToken)
+
   return c.json(HTTP.Response(HttpPhrase.OK, { tokens }), HttpStatus.OK)
 })
 
@@ -260,8 +272,10 @@ user.post('/logout', async c => {
 
   await database
     .update(users)
-    .set({ refreshToken: null, updatedAt: new Date().toISOString() })
+    .set({ refreshToken: null })
     .where(eq(users.id, userId))
+
+  clearAuthCookies(c)
 
   return c.json(HTTP.Response(HttpPhrase.OK, null), HttpStatus.OK)
 })
@@ -281,15 +295,17 @@ user.post(
         id: true,
         password: true,
       },
-      where: eq(users.id, userId),
+      where: {
+        id: userId,
+      },
     })
 
     if (!userRecord) {
       throw HTTP.Error(HttpStatus.NOT_FOUND, 'User not found')
     }
 
-    const isValid = await passwordMatch(currentPassword, userRecord.password)
-    if (!isValid) {
+    const isMatch = await passwordMatch(currentPassword, userRecord.password)
+    if (!isMatch) {
       throw HTTP.Error(HttpStatus.UNAUTHORIZED, 'Current password is incorrect')
     }
 
@@ -322,7 +338,9 @@ user.get('/current-user', async c => {
       createdAt: true,
       updatedAt: true,
     },
-    where: eq(users.id, userId),
+    where: {
+      id: userId,
+    },
   })
 
   if (!userRecord) {
@@ -411,6 +429,7 @@ user.patch(
       CLOUDINARY_UPLOAD_PRESET
     )
 
+    // @ts-ignore
     if (!avatarUrl?.secure_url && !avatarUrl?.url) {
       throw HTTP.Error(HttpStatus.BAD_REQUEST, 'Error while uploading avatar')
     }
@@ -419,6 +438,7 @@ user.patch(
     const [updatedUser] = await database
       .update(users)
       .set({
+        // @ts-ignore
         avatar: avatarUrl?.secure_url || avatarUrl?.url,
         updatedAt: new Date().toISOString(),
       })
@@ -464,6 +484,7 @@ user.patch(
       CLOUDINARY_UPLOAD_PRESET
     )
 
+    // @ts-ignore
     if (!coverImageUrl?.secure_url && !coverImageUrl?.url) {
       throw HTTP.Error(
         HttpStatus.BAD_REQUEST,
@@ -475,6 +496,7 @@ user.patch(
     const [updatedUser] = await database
       .update(users)
       .set({
+        // @ts-ignore
         coverImage: coverImageUrl?.secure_url || coverImageUrl?.url,
         updatedAt: new Date().toISOString(),
       })
@@ -569,13 +591,6 @@ user.get('/c/:username', async c => {
     }),
     HttpStatus.OK
   )
-})
-
-user.use('/history', authMiddleware)
-user.get('/history', async c => {
-  const _userId = c.get('user')
-  const _database = db(c.env.DATABASE_URL)
-  return c.json(HTTP.Response(HttpPhrase.OK, { history: [] }), HttpStatus.OK)
 })
 
 export default user
