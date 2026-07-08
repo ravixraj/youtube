@@ -1,7 +1,8 @@
 import { zValidator as zv } from '@hono/zod-validator'
-import type { ContentfulStatusCode, ValidationTargets } from 'hono'
-import type { ZodError, ZodSchema } from 'zod'
-import { ApiError, ApiResponse } from './http'
+import type { ValidationTargets } from 'hono'
+import type { ZodError, ZodType } from 'zod'
+import { HTTP, HttpStatus } from './http'
+import { ContentfulStatusCode } from 'hono/utils/http-status'
 
 export const handleZodError = <T>(
   result: { success: true; data: T } | { success: false; error: ZodError }
@@ -13,8 +14,8 @@ export const handleZodError = <T>(
   const isMissing =
     issue?.code === 'invalid_type' && issue.input === 'undefined'
 
-  throw new ApiError(
-    isMissing ? 400 : 422,
+  throw HTTP.Error(
+    isMissing ? HttpStatus.BAD_REQUEST : HttpStatus.UNPROCESSABLE_ENTITY,
     isMissing
       ? path
         ? `Missing '${path}' field`
@@ -24,7 +25,7 @@ export const handleZodError = <T>(
 }
 
 export const zValidator = <
-  T extends ZodSchema,
+  T extends ZodType,
   Target extends keyof ValidationTargets,
 >(
   target: Target,
@@ -44,6 +45,6 @@ export const zValidator = <
         : issue?.message || 'Invalid input data'
 
       const statusCode = (isMissing ? 400 : 422) as ContentfulStatusCode
-      return c.json(new ApiResponse(statusCode, null, message), statusCode)
+      return c.json(HTTP.Response(message, null, false), statusCode)
     }
   })

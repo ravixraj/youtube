@@ -1,12 +1,11 @@
-import { ApiError } from './http'
-import { HttpStatus } from './const'
-import { env } from './env'
+import { HTTP, HttpStatus } from './http'
 
-export const uploadToCloudinary = async (file: File) => {
+export const uploadToCloudinary = async (
+  file: File,
+  cloudName: string,
+  uploadPreset: string
+) => {
   try {
-    const cloudName = env.CLOUDINARY_CLOUD_NAME
-    const uploadPreset = env.CLOUDINARY_UPLOAD_PRESET
-
     const url = `https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`
 
     const form = new FormData()
@@ -21,11 +20,14 @@ export const uploadToCloudinary = async (file: File) => {
     const body = await res.json()
 
     if (!res.ok) {
-      throw new Error(body?.error?.message ?? 'Cloudinary upload failed')
+      throw HTTP.Error(
+        HttpStatus.BAD_REQUEST,
+        body?.error?.message ?? 'Cloudinary upload failed'
+      )
     }
 
     return body
   } catch (error) {
-    throw new ApiError(HttpStatus.BAD_REQUEST, 'Failed to upload on cloudinary')
+    throw HTTP.Error(HttpStatus.BAD_REQUEST, 'Failed to upload on cloudinary')
   }
 }
