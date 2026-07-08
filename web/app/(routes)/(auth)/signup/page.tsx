@@ -11,6 +11,7 @@ import { useAuth } from "@/context/AuthContext";
 export default function SignUpPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [formData, setFormData] = useState({
     username: "",
     fullname: "",
@@ -26,7 +27,14 @@ export default function SignUpPage() {
     setLoading(true);
     setError(null);
 
-    const result = await register(formData);
+    const data = new FormData();
+    data.append("username", formData.username);
+    data.append("fullname", formData.fullname);
+    data.append("email", formData.email);
+    data.append("password", formData.password);
+    if (avatarFile) data.append("avatar", avatarFile);
+
+    const result = await register(data);
 
     if (result.success) {
       router.push("/home");
@@ -110,18 +118,28 @@ export default function SignUpPage() {
           />
         </div>
 
+        <div className="grid w-full max-w-sm items-center gap-3 mt-3">
+          <Label htmlFor="avatar">Avatar (Optional)</Label>
+          <Input
+            className="bg-input"
+            type="file"
+            id="avatar"
+            accept="image/*"
+            onChange={(e) => setAvatarFile(e.target.files?.[0] || null)}
+          />
+        </div>
+
         <Button className="mt-5 w-full" type="submit" disabled={loading}>
           {loading ? "Signing Up..." : "Sign Up"}
         </Button>
       </form>
 
       <p className="my-14 text-sm font-light">
-        Already registered?
+        Already registered?{" "}
         <Link
           className="cursor-pointer font-bold hover:underline"
           href={"/signin"}
         >
-          {" "}
           Sign in to your account
         </Link>
       </p>

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Video } from "@/types/video";
+import { type Video } from "@/lib/api";
 
 interface VideoCardProps {
   video: Video;
@@ -50,7 +50,6 @@ const VideoCard = ({ video, onClick }: VideoCardProps) => {
       className="w-full bg-card rounded-xl overflow-hidden cursor-pointer group hover:shadow-lg dark:hover:shadow-primary/5 transition-all duration-300"
       onClick={handleClick}
     >
-      {/* Thumbnail */}
       <div className="relative w-full pt-[56.25%]">
         <div className="absolute inset-0">
           <img
@@ -59,15 +58,12 @@ const VideoCard = ({ video, onClick }: VideoCardProps) => {
             className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
           />
         </div>
-        {/* Duration Badge */}
         <span className="absolute bottom-2 right-2 px-1.5 py-0.5 rounded bg-black/80 text-white text-xs font-medium">
           {formatDuration(video.duration)}
         </span>
       </div>
 
-      {/* Video Info */}
       <div className="flex gap-3 p-3">
-        {/* Channel Avatar */}
         <Link
           href={`/@${video.owner?.username || "unknown"}`}
           onClick={(e) => e.stopPropagation()}
@@ -88,7 +84,6 @@ const VideoCard = ({ video, onClick }: VideoCardProps) => {
           </div>
         </Link>
 
-        {/* Video Details */}
         <div className="flex-1 min-w-0">
           <h3 className="font-semibold text-foreground line-clamp-2 text-sm leading-snug group-hover:text-primary transition-colors">
             {video.title}
@@ -101,7 +96,8 @@ const VideoCard = ({ video, onClick }: VideoCardProps) => {
             {video.owner?.fullname || video.owner?.username || "Unknown"}
           </Link>
           <p className="text-muted-foreground text-xs mt-0.5">
-            {formatViewCount(video.viewCount)} views · {formatDate(video.createdAt)}
+            {formatViewCount(video.viewCount)} views ·{" "}
+            {formatDate(video.createdAt)}
           </p>
         </div>
       </div>
@@ -112,11 +108,7 @@ const VideoCard = ({ video, onClick }: VideoCardProps) => {
     return CardContent;
   }
 
-  return (
-    <Link href={`/watch/${video.id}`}>
-      {CardContent}
-    </Link>
-  );
+  return <Link href={`/watch/${video.id}`}>{CardContent}</Link>;
 };
 
 export default VideoCard;

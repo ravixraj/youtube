@@ -7,18 +7,17 @@ import {
   useEffect,
   ReactNode,
 } from "react";
-import { User } from "../types/user";
-import { authAPI } from "../lib/api";
-import { LoginInput, RegisterInput } from "../types/auth";
+import { User } from "../lib/api";
+import { authAPI, userAPI } from "../lib/api";
 
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   login: (
-    credentials: LoginInput,
+    credentials: { username: string; password: string },
   ) => Promise<{ success: boolean; message: string }>;
   register: (
-    data: RegisterInput,
+    data: FormData,
   ) => Promise<{ success: boolean; message: string }>;
   logout: () => void;
   refreshToken: () => Promise<boolean>;
@@ -30,37 +29,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Check if user is already logged in
   useEffect(() => {
     const initAuth = async () => {
       const accessToken = localStorage.getItem("accessToken");
 
       if (accessToken) {
         try {
-          const response = await fetch(
-            `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1"}/auth/current-user`,
-            {
-              headers: {
-                Authorization: `Bearer ${accessToken}`,
-              },
-            }
-          );
+          const response = await userAPI.getCurrentUser();
 
-          if (response.ok) {
-            const data = await response.json();
-            if (data.success && data.data?.user) {
-              setUser(data.data.user);
-            }
-          } else if (response.status === 401) {
-            // Token expired, try to refresh
+          if (response.success && response.data?.user) {
+            setUser(response.data.user);
+          } else if (!response.success) {
             const refreshed = await refreshToken();
             if (!refreshed) {
               localStorage.removeItem("accessToken");
               localStorage.removeItem("refreshToken");
             }
           }
-        } catch (error) {
-          console.error("Auth init error:", error);
+        } catch {
+          localStorage.removeItem("accessToken");
+          localStorage.removeItem("refreshToken");
         }
       }
       setIsLoading(false);
@@ -69,68 +57,78 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     initAuth();
   }, []);
 
-  const login = async (credentials: LoginInput) => {
+  const login = async (credentials: { username: string; password: string }) => {
     try {
       const response = await authAPI.login(credentials);
 
       if (response.success && response.data) {
-        localStorage.setItem("accessToken", response.data.accessToken);
-        localStorage.setItem("refreshToken", response.data.refreshToken);
+        localStorage.setItem("accessToken", response.data.tokens.accessToken);
+        localStorage.setItem(
+          "refreshToken",
+          response.data.tokens.refreshToken,
+        );
         setUser(response.data.user);
         return { success: true, message: response.message };
       }
 
-      return { success: false, message: response.error || "Login failed" };
-    } catch (error) {
+      return { success: false, message: response.message || "Login failed" };
+    } catch {
       return { success: false, message: "Login failed" };
     }
   };
 
-  const register = async (data: RegisterInput) => {
+  const register = async (data: FormData) => {
     try {
       const response = await authAPI.register(data);
 
-      if (response.success && response.data) {
-        localStorage.setItem("accessToken", response.data.accessToken);
-        localStorage.setItem("refreshToken", response.data.refreshToken);
+      if (response.success && response.data?.user) {
         setUser(response.data.user);
         return { success: true, message: response.message };
       }
 
       return {
         success: false,
-        message: response.error || "Registration failed",
+        message: response.message || "Registration failed",
       };
-    } catch (error) {
+    } catch {
       return { success: false, message: "Registration failed" };
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await authAPI.logout();
+    } catch {
+      // ignore
+    }
     localStorage.removeItem("accessToken");
     localStorage.removeItem("refreshToken");
     setUser(null);
   };
 
   const refreshToken = async () => {
-    const refreshToken = localStorage.getItem("refreshToken");
-    if (!refreshToken) {
-      logout();
+    const storedRefreshToken = localStorage.getItem("refreshToken");
+    if (!storedRefreshToken) {
       return false;
     }
 
     try {
-      const response = await authAPI.refreshToken(refreshToken);
+      const response = await authAPI.refreshToken(storedRefreshToken);
       if (response.success && response.data) {
-        localStorage.setItem("accessToken", response.data.accessToken);
-        localStorage.setItem("refreshToken", response.data.refreshToken);
-        setUser(response.data.user);
+        localStorage.setItem(
+          "accessToken",
+          response.data.tokens.accessToken,
+        );
+        localStorage.setItem(
+          "refreshToken",
+          response.data.tokens.refreshToken,
+        );
         return true;
       } else {
         logout();
         return false;
       }
-    } catch (error) {
+    } catch {
       logout();
       return false;
     }

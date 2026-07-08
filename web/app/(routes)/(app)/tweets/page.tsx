@@ -2,12 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { Tweet } from "@/types/tweet";
-import { tweetAPI } from "@/lib/api";
+import { tweetAPI, type Tweet } from "@/lib/api";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { MessageSquare, Play, Heart } from "lucide-react";
+import { MessageSquare, Heart } from "lucide-react";
 
 export default function TweetsPage() {
   const { user } = useAuth();
@@ -22,14 +21,11 @@ export default function TweetsPage() {
 
   const fetchTweets = async () => {
     try {
-      const response = await tweetAPI.search({
-        page: 1,
-        limit: 50,
-        sortBy: "createdAt",
-        sortOrder: "desc",
-      });
-      if (response.success && response.data) {
-        setTweets(response.data as Tweet[]);
+      if (user?.id) {
+        const response = await tweetAPI.getByUser(user.id);
+        if (response.success && response.data) {
+          setTweets(response.data);
+        }
       }
     } catch (error) {
       console.error("Error fetching tweets:", error);
@@ -45,7 +41,7 @@ export default function TweetsPage() {
     setPosting(true);
     try {
       const response = await tweetAPI.create({ content: newTweet });
-      if (response.success && response.data) {
+      if (response.success) {
         setNewTweet("");
         fetchTweets();
       }
@@ -69,7 +65,6 @@ export default function TweetsPage() {
 
   return (
     <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-8">
-      {/* Create Tweet */}
       <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6 mb-4 sm:mb-8">
         <div className="flex gap-4">
           <Avatar className="w-12 h-12">
@@ -104,7 +99,6 @@ export default function TweetsPage() {
         </div>
       </div>
 
-      {/* Tweets Feed */}
       <div className="space-y-4">
         {tweets.length > 0 ? (
           tweets.map((tweet) => (
@@ -140,17 +134,9 @@ export default function TweetsPage() {
                       <MessageSquare className="h-4 w-4 inline mr-1" />
                       Reply
                     </button>
-                    <button className="hover:text-green-600">
-                      <Play className="h-4 w-4 inline mr-1" />
-                      Retweet
-                    </button>
                     <button className="hover:text-red-600">
                       <Heart className="h-4 w-4 inline mr-1" />
                       Like
-                    </button>
-                    <button className="hover:text-blue-600">
-                      <MessageSquare className="h-4 w-4 inline mr-1" />
-                      Share
                     </button>
                   </div>
                 </div>

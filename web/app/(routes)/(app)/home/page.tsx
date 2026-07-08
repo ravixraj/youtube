@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { videoAPI } from "@/lib/api";
-import { Video } from "@/types/video";
+import { videoAPI, type Video } from "@/lib/api";
 import VideoCard from "@/components/VideoCard";
 import VideoCardSkeleton from "@/components/VideoCardSkeleton";
 
@@ -26,7 +25,7 @@ export default function HomePage() {
       });
 
       if (response.success && response.data) {
-        setVideos(response.data as Video[]);
+        setVideos(response.data);
       }
     } catch (error) {
       console.error("Error fetching videos:", error);

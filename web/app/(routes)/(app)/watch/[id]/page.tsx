@@ -13,9 +13,14 @@ import {
   ThumbsDown,
   Bell,
 } from "lucide-react";
-import { videoAPI, commentAPI, likeAPI, subscriptionAPI } from "@/lib/api";
-import { Video } from "@/types/video";
-import { Comment } from "@/types/comment";
+import {
+  videoAPI,
+  commentAPI,
+  likeAPI,
+  subscriptionAPI,
+  type Video,
+  type Comment,
+} from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import Link from "next/link";
 
@@ -45,10 +50,8 @@ export default function WatchPage() {
     try {
       const response = await videoAPI.getById(videoId);
       if (response.success && response.data) {
-        const videoData = response.data as Video;
+        const videoData = response.data;
         setVideo(videoData);
-        setLikeCount(videoData.likeCount);
-        setCommentCount(videoData.commentCount);
         setViewCount(videoData.viewCount);
       }
     } catch (error) {
@@ -62,7 +65,7 @@ export default function WatchPage() {
     try {
       const response = await commentAPI.getByVideo(videoId);
       if (response.success && response.data) {
-        setComments(response.data as Comment[]);
+        setComments(response.data);
         setCommentCount(response.data.length);
       }
     } catch (error) {
@@ -95,11 +98,7 @@ export default function WatchPage() {
         setIsLiked(false);
         setLikeCount((prev) => Math.max(0, prev - 1));
       } else {
-        const response = await likeAPI.create({
-          targetId: videoId,
-          targetType: "video",
-        });
-
+        const response = await likeAPI.toggleVideo(videoId);
         if (response.success) {
           setIsLiked(true);
           setLikeCount((prev) => prev + 1);
@@ -114,11 +113,8 @@ export default function WatchPage() {
     try {
       if (isSubscribed) {
         setIsSubscribed(false);
-      } else {
-        const response = await subscriptionAPI.create({
-          channelId: video?.userId || "",
-        });
-
+      } else if (video?.userId) {
+        const response = await subscriptionAPI.toggle(video.userId);
         if (response.success) {
           setIsSubscribed(true);
         }
@@ -148,9 +144,7 @@ export default function WatchPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 py-6">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Content */}
         <div className="lg:col-span-2">
-          {/* Video Player */}
           <div className="mb-4">
             <div className="relative aspect-video bg-black rounded-xl overflow-hidden">
               <video
@@ -163,29 +157,34 @@ export default function WatchPage() {
             </div>
           </div>
 
-          {/* Video Info */}
           <div className="mb-6">
             <h1 className="text-xl sm:text-2xl font-bold text-foreground mb-3">
               {video.title}
             </h1>
 
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              {/* Channel Info */}
               <div className="flex items-center gap-3">
                 <Link href={`/@${video.owner?.username}`}>
                   <Avatar className="h-10 w-10">
-                    <AvatarImage src={video.owner?.avatar} alt={video.owner?.username} />
+                    <AvatarImage
+                      src={video.owner?.avatar}
+                      alt={video.owner?.username}
+                    />
                     <AvatarFallback className="bg-primary text-primary-foreground">
                       {video.owner?.username?.charAt(0).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
                 </Link>
                 <div>
-                  <Link href={`/@${video.owner?.username}`} className="font-semibold text-foreground hover:text-primary transition-colors">
+                  <Link
+                    href={`/@${video.owner?.username}`}
+                    className="font-semibold text-foreground hover:text-primary transition-colors"
+                  >
                     {video.owner?.fullname}
                   </Link>
                   <p className="text-sm text-muted-foreground">
-                    {formatViewCount(viewCount)} views · {new Date(video.createdAt).toLocaleDateString()}
+                    {formatViewCount(viewCount)} views ·{" "}
+                    {new Date(video.createdAt).toLocaleDateString()}
                   </p>
                 </div>
                 <Button
@@ -198,14 +197,15 @@ export default function WatchPage() {
                 </Button>
               </div>
 
-              {/* Action Buttons */}
               <div className="flex items-center gap-2 flex-wrap">
                 <Button
                   onClick={handleLike}
                   variant="secondary"
                   className={isLiked ? "bg-primary/10 text-primary" : ""}
                 >
-                  <ThumbsUp className={`h-4 w-4 mr-2 ${isLiked ? "fill-current" : ""}`} />
+                  <ThumbsUp
+                    className={`h-4 w-4 mr-2 ${isLiked ? "fill-current" : ""}`}
+                  />
                   {formatViewCount(likeCount)}
                 </Button>
                 <Button variant="secondary">
@@ -218,19 +218,18 @@ export default function WatchPage() {
               </div>
             </div>
 
-            {/* Description */}
             <div className="mt-4 bg-muted rounded-xl p-4">
-              <p className="text-foreground whitespace-pre-wrap">{video.description || "No description"}</p>
+              <p className="text-foreground whitespace-pre-wrap">
+                {video.description || "No description"}
+              </p>
             </div>
           </div>
 
-          {/* Comments Section */}
           <div>
             <h2 className="text-lg font-semibold text-foreground mb-4">
               {commentCount} Comments
             </h2>
 
-            {/* Add Comment */}
             {user && (
               <form onSubmit={handleCommentSubmit} className="mb-6">
                 <div className="flex gap-3">
@@ -265,12 +264,14 @@ export default function WatchPage() {
               </form>
             )}
 
-            {/* Comments List */}
             <div className="space-y-4">
               {comments.map((comment) => (
                 <div key={comment.id} className="flex gap-3">
                   <Avatar className="h-10 w-10">
-                    <AvatarImage src={comment.user?.avatar} alt={comment.user?.username} />
+                    <AvatarImage
+                      src={comment.user?.avatar}
+                      alt={comment.user?.username}
+                    />
                     <AvatarFallback className="bg-muted text-muted-foreground">
                       {comment.user?.username?.charAt(0).toUpperCase()}
                     </AvatarFallback>
@@ -298,13 +299,15 @@ export default function WatchPage() {
                       </button>
                     </div>
 
-                    {/* Replies */}
                     {comment.replies && comment.replies.length > 0 && (
                       <div className="mt-4 ml-4 space-y-3 border-l-2 border-border pl-4">
                         {comment.replies.map((reply: Comment) => (
                           <div key={reply.id} className="flex gap-3">
                             <Avatar className="h-8 w-8">
-                              <AvatarImage src={reply.user?.avatar} alt={reply.user?.username} />
+                              <AvatarImage
+                                src={reply.user?.avatar}
+                                alt={reply.user?.username}
+                              />
                               <AvatarFallback className="bg-muted text-muted-foreground text-xs">
                                 {reply.user?.username?.charAt(0).toUpperCase()}
                               </AvatarFallback>
@@ -315,10 +318,14 @@ export default function WatchPage() {
                                   {reply.user?.fullname}
                                 </span>
                                 <span className="text-xs text-muted-foreground">
-                                  {new Date(reply.createdAt).toLocaleDateString()}
+                                  {new Date(
+                                    reply.createdAt,
+                                  ).toLocaleDateString()}
                                 </span>
                               </div>
-                              <p className="text-foreground text-sm">{reply.content}</p>
+                              <p className="text-foreground text-sm">
+                                {reply.content}
+                              </p>
                             </div>
                           </div>
                         ))}
@@ -337,9 +344,10 @@ export default function WatchPage() {
           </div>
         </div>
 
-        {/* Sidebar - Related Videos (placeholder) */}
         <div className="lg:col-span-1">
-          <h3 className="font-semibold text-foreground mb-4">Related Videos</h3>
+          <h3 className="font-semibold text-foreground mb-4">
+            Related Videos
+          </h3>
           <p className="text-muted-foreground text-sm">
             Related videos will appear here.
           </p>

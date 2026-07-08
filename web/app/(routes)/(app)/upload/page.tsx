@@ -14,8 +14,6 @@ export default function UploadPage() {
   const [formData, setFormData] = useState({
     title: "",
     description: "",
-    thumbnail: "",
-    duration: 0,
     isPublished: true,
   });
   const [videoFile, setVideoFile] = useState<File | null>(null);
@@ -34,38 +32,32 @@ export default function UploadPage() {
     setError(null);
 
     try {
-      const response = await videoAPI.create({
-        ...formData,
-        videoFile,
-        thumbnail: thumbnailFile || undefined,
-      });
+      const data = new FormData();
+      data.append("title", formData.title);
+      if (formData.description) data.append("description", formData.description);
+      data.append("isPublished", String(formData.isPublished));
+      data.append("videoFile", videoFile);
+      if (thumbnailFile) data.append("thumbnail", thumbnailFile);
+
+      const response = await videoAPI.create(data);
 
       if (response.success && response.data) {
         router.push(`/watch/${response.data.id}`);
       } else {
-        setError(response.error || "Upload failed");
+        setError(response.message || "Upload failed");
       }
-    } catch (error) {
+    } catch {
       setError("Upload failed");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (e.target.id === "videoFile") {
-        setVideoFile(file);
-      } else if (e.target.id === "thumbnailFile") {
-        setThumbnailFile(file);
-      }
-    }
-  };
-
   return (
     <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-8 max-w-4xl">
-      <h1 className="text-2xl sm:text-3xl font-bold mb-4 sm:mb-8">Upload Video</h1>
+      <h1 className="text-2xl sm:text-3xl font-bold mb-4 sm:mb-8">
+        Upload Video
+      </h1>
 
       {error && (
         <div className="mb-6 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
@@ -74,14 +66,13 @@ export default function UploadPage() {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Video File */}
         <div className="grid gap-3">
           <Label htmlFor="videoFile">Video File</Label>
           <Input
             id="videoFile"
             type="file"
             accept="video/*"
-            onChange={handleFileChange}
+            onChange={(e) => setVideoFile(e.target.files?.[0] || null)}
             required
           />
           {videoFile && (
@@ -92,14 +83,13 @@ export default function UploadPage() {
           )}
         </div>
 
-        {/* Thumbnail File */}
         <div className="grid gap-3">
           <Label htmlFor="thumbnailFile">Thumbnail (Optional)</Label>
           <Input
             id="thumbnailFile"
             type="file"
             accept="image/*"
-            onChange={handleFileChange}
+            onChange={(e) => setThumbnailFile(e.target.files?.[0] || null)}
           />
           {thumbnailFile && (
             <p className="text-sm text-green-600">
@@ -109,7 +99,6 @@ export default function UploadPage() {
           )}
         </div>
 
-        {/* Title */}
         <div className="grid gap-3">
           <Label htmlFor="title">Title *</Label>
           <Input
@@ -124,7 +113,6 @@ export default function UploadPage() {
           />
         </div>
 
-        {/* Description */}
         <div className="grid gap-3">
           <Label htmlFor="description">Description</Label>
           <Textarea
@@ -138,24 +126,6 @@ export default function UploadPage() {
           />
         </div>
 
-        {/* Duration */}
-        <div className="grid gap-3">
-          <Label htmlFor="duration">Duration (seconds)</Label>
-          <Input
-            id="duration"
-            type="number"
-            value={formData.duration}
-            onChange={(e) =>
-              setFormData({
-                ...formData,
-                duration: parseInt(e.target.value) || 0,
-              })
-            }
-            placeholder="Enter video duration"
-          />
-        </div>
-
-        {/* Published Status */}
         <div className="flex items-center gap-3">
           <input
             type="checkbox"
@@ -169,7 +139,6 @@ export default function UploadPage() {
           <Label htmlFor="isPublished">Publish immediately</Label>
         </div>
 
-        {/* Submit Button */}
         <div className="flex gap-3">
           <Button
             type="submit"
@@ -188,7 +157,6 @@ export default function UploadPage() {
         </div>
       </form>
 
-      {/* Upload Guidelines */}
       <div className="mt-8 p-4 bg-gray-100 rounded-lg">
         <h3 className="font-semibold mb-2">Upload Guidelines:</h3>
         <ul className="text-sm text-gray-600 space-y-1">
@@ -197,7 +165,7 @@ export default function UploadPage() {
           <li>• Recommended thumbnail size: 1280x720 pixels</li>
           <li>• Maximum thumbnail size: 10 MB</li>
           <li>• Title should not exceed 100 characters</li>
-          <li>• Description should not exceed 5000 characters</li>
+          <li>• Description should not exceed 500 characters</li>
         </ul>
       </div>
     </div>

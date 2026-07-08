@@ -4,18 +4,23 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Play, ListVideo, MessageSquare, Bell, Heart, Repeat2, Share } from "lucide-react";
-import { userAPI, videoAPI, tweetAPI } from "@/lib/api";
-import { User } from "@/types/user";
-import { Video } from "@/types/video";
-import { Tweet } from "@/types/tweet";
+import {
+  Play,
+  ListVideo,
+  MessageSquare,
+  Bell,
+  Heart,
+  Repeat2,
+  Share,
+} from "lucide-react";
+import { userAPI, videoAPI, tweetAPI, type ChannelUser, type Video, type Tweet } from "@/lib/api";
 import VideoCard from "@/components/VideoCard";
 import VideoCardSkeleton from "@/components/VideoCardSkeleton";
 
 export default function ProfilePage() {
   const params = useParams();
   const router = useRouter();
-  const [user, setUser] = useState<User | null>(null);
+  const [channel, setChannel] = useState<ChannelUser | null>(null);
   const [videos, setVideos] = useState<Video[]>([]);
   const [tweets, setTweets] = useState<Tweet[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -31,17 +36,19 @@ export default function ProfilePage() {
   }, [username]);
 
   useEffect(() => {
-    if (user?.id) {
+    if (channel?.id) {
       fetchVideos();
       fetchTweets();
     }
-  }, [user?.id]);
+  }, [channel?.id]);
 
   const fetchProfile = async () => {
     try {
-      const response = await userAPI.getProfile();
-      if (response.success && response.data) {
-        setUser(response.data.user);
+      const response = await userAPI.getChannel(username);
+      if (response.success && response.data?.user) {
+        const ch = response.data.user;
+        setChannel(ch);
+        setIsSubscribed(ch.isSubscribed);
       }
     } catch (error) {
       console.error("Error fetching profile:", error);
@@ -50,9 +57,9 @@ export default function ProfilePage() {
 
   const fetchVideos = async () => {
     try {
-      const response = await videoAPI.getByUser(user?.id || "");
+      const response = await videoAPI.search({ userId: channel?.id });
       if (response.success && response.data) {
-        setVideos(response.data as Video[]);
+        setVideos(response.data);
       }
     } catch (error) {
       console.error("Error fetching videos:", error);
@@ -61,9 +68,9 @@ export default function ProfilePage() {
 
   const fetchTweets = async () => {
     try {
-      const response = await tweetAPI.getByUser(user?.id || "");
+      const response = await tweetAPI.getByUser(channel?.id || "");
       if (response.success && response.data) {
-        setTweets(response.data as Tweet[]);
+        setTweets(response.data);
       }
     } catch (error) {
       console.error("Error fetching tweets:", error);
@@ -74,6 +81,16 @@ export default function ProfilePage() {
 
   const handleVideoClick = (videoId: string) => {
     router.push(`/watch/${videoId}`);
+  };
+
+  const handleSubscribe = async () => {
+    try {
+      if (isSubscribed) {
+        setIsSubscribed(false);
+      }
+    } catch (error) {
+      console.error("Error toggling subscription:", error);
+    }
   };
 
   if (isLoading) {
@@ -93,56 +110,67 @@ export default function ProfilePage() {
     );
   }
 
-  if (!user) {
+  if (!channel) {
     return (
       <div className="max-w-6xl mx-auto px-4 py-16 text-center">
         <div className="w-20 h-20 bg-muted rounded-full mx-auto mb-4 flex items-center justify-center">
           <MessageSquare className="w-10 h-10 text-muted-foreground" />
         </div>
-        <h2 className="text-xl font-semibold text-foreground mb-2">User not found</h2>
-        <p className="text-muted-foreground">The channel you're looking for doesn't exist.</p>
+        <h2 className="text-xl font-semibold text-foreground mb-2">
+          User not found
+        </h2>
+        <p className="text-muted-foreground">
+          The channel you're looking for doesn't exist.
+        </p>
       </div>
     );
   }
 
   const tabs = [
     { id: "videos", label: "Videos", icon: ListVideo, count: videos.length },
-    { id: "tweets", label: "Tweets", icon: MessageSquare, count: tweets.length },
+    {
+      id: "tweets",
+      label: "Tweets",
+      icon: MessageSquare,
+      count: tweets.length,
+    },
     { id: "playlists", label: "Playlists", icon: Play, count: 0 },
   ];
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-6">
-      {/* Cover Image */}
       <div className="w-full h-32 sm:h-48 bg-gradient-to-r from-primary/20 to-primary/5 rounded-xl mb-4 overflow-hidden">
-        {user.coverImage && (
+        {channel.coverImage && (
           <img
-            src={user.coverImage}
+            src={channel.coverImage}
             alt="Cover"
             className="w-full h-full object-cover"
           />
         )}
       </div>
 
-      {/* Profile Info */}
       <div className="flex flex-col sm:flex-row sm:items-end gap-4 mb-6 -mt-12 sm:-mt-16 px-4">
         <Avatar className="w-24 h-24 sm:w-32 sm:h-32 border-4 border-background shadow-lg">
-          <AvatarImage src={user.avatar || ""} alt={user.username} />
+          <AvatarImage src={channel.avatar || ""} alt={channel.username} />
           <AvatarFallback className="text-2xl bg-primary text-primary-foreground">
-            {user.username?.charAt(0).toUpperCase()}
+            {channel.username?.charAt(0).toUpperCase()}
           </AvatarFallback>
         </Avatar>
         <div className="flex-1">
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
-            {user.fullname}
+            {channel.fullname}
           </h1>
-          <p className="text-muted-foreground">@{user.username}</p>
+          <p className="text-muted-foreground">@{channel.username}</p>
           <p className="text-sm text-muted-foreground mt-1">
-            Joined {new Date(user.createdAt).toLocaleDateString("en-US", { month: "long", year: "numeric" })}
+            {channel.subscribersCount} subscribers · Joined{" "}
+            {new Date(channel.createdAt).toLocaleDateString("en-US", {
+              month: "long",
+              year: "numeric",
+            })}
           </p>
         </div>
         <Button
-          onClick={() => setIsSubscribed(!isSubscribed)}
+          onClick={handleSubscribe}
           variant={isSubscribed ? "secondary" : "default"}
           className={isSubscribed ? "" : "bg-red-600 hover:bg-red-700"}
         >
@@ -151,17 +179,17 @@ export default function ProfilePage() {
         </Button>
       </div>
 
-      {/* Tabs */}
       <div className="border-b border-border mb-6">
         <nav className="flex gap-6 overflow-x-auto">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 pb-3 px-1 font-medium whitespace-nowrap transition-colors ${activeTab === tab.id
+              className={`flex items-center gap-2 pb-3 px-1 font-medium whitespace-nowrap transition-colors ${
+                activeTab === tab.id
                   ? "text-primary border-b-2 border-primary"
                   : "text-muted-foreground hover:text-foreground"
-                }`}
+              }`}
             >
               <tab.icon className="h-4 w-4" />
               {tab.label} ({tab.count})
@@ -170,7 +198,6 @@ export default function ProfilePage() {
         </nav>
       </div>
 
-      {/* Tab Content */}
       <div className="min-h-[400px]">
         {activeTab === "videos" && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -201,7 +228,10 @@ export default function ProfilePage() {
                 >
                   <div className="flex items-start gap-3">
                     <Avatar className="w-10 h-10">
-                      <AvatarImage src={tweet.user?.avatar} alt={tweet.user?.username} />
+                      <AvatarImage
+                        src={tweet.user?.avatar}
+                        alt={tweet.user?.username}
+                      />
                       <AvatarFallback className="bg-muted">
                         {tweet.user?.username?.charAt(0).toUpperCase()}
                       </AvatarFallback>

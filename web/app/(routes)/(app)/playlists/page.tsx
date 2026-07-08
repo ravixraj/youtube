@@ -2,12 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { Playlist } from "@/types/playlist";
-import { playlistAPI } from "@/lib/api";
+import { playlistAPI, type Playlist } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ListVideo, Plus } from "lucide-react";
 
 export default function PlaylistsPage() {
@@ -27,14 +25,9 @@ export default function PlaylistsPage() {
 
   const fetchPlaylists = async () => {
     try {
-      const response = await playlistAPI.getByUser(user?.id || "", {
-        page: 1,
-        limit: 50,
-        sortBy: "createdAt",
-        sortOrder: "desc",
-      });
+      const response = await playlistAPI.getByUser(user?.id || "");
       if (response.success && response.data) {
-        setPlaylists(response.data as Playlist[]);
+        setPlaylists(response.data);
       }
     } catch (error) {
       console.error("Error fetching playlists:", error);
@@ -88,7 +81,6 @@ export default function PlaylistsPage() {
 
   return (
     <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-8">
-      {/* Page Header */}
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-3xl font-bold">Your Playlists</h1>
         <Button
@@ -100,7 +92,6 @@ export default function PlaylistsPage() {
         </Button>
       </div>
 
-      {/* Playlists Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fill,minmax(250px,1fr))] md:grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4 sm:gap-6">
         {playlists.length > 0 ? (
           playlists.map((playlist) => (
@@ -108,11 +99,10 @@ export default function PlaylistsPage() {
               key={playlist.id}
               className="bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-lg transition-shadow"
             >
-              {/* Cover Image */}
               <div className="relative aspect-video bg-gray-100">
                 {playlist.videos && playlist.videos.length > 0 ? (
                   <img
-                    src={playlist.videos[0].thumbnail}
+                    src={playlist.videos[0].thumbnail || ""}
                     alt={playlist.name}
                     className="w-full h-full object-cover"
                   />
@@ -123,7 +113,6 @@ export default function PlaylistsPage() {
                 )}
               </div>
 
-              {/* Playlist Info */}
               <div className="p-3 sm:p-4">
                 <h3 className="font-semibold mb-2 line-clamp-2">
                   {playlist.name}
@@ -169,7 +158,6 @@ export default function PlaylistsPage() {
         )}
       </div>
 
-      {/* Create Playlist Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
