@@ -1,5 +1,12 @@
 {
   "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "skipLibCheck": true,
+    "lib": [
+      "ESNext"
+    ],
     // type-safety / strictness
     "strict": true,
     "noImplicitAny": true,
@@ -17,11 +24,10 @@
     "jsxImportSource": "hono/jsx",
     "jsx": "react-jsx",
 
-    "baseUrl": "./src",
     "paths": {
-      "@/*": ["*"]
+      "@/*": ["./src/*"]
     }
   },
-  "include": ["src", "types"],
+  "include": ["src", "worker-configuration.d.ts"],
   "exclude": ["node_modules", "dist"]
 }

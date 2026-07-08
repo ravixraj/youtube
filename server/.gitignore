@@ -149,4 +149,4 @@ Thumbs.db
 # Typescript cache
 *.tsbuildinfo
 
-/src/generated/prisma
+.wrangler

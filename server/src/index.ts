@@ -1,71 +1,80 @@
 import { DrizzleError } from 'drizzle-orm'
 import { Hono } from 'hono'
+import { env } from 'hono/adapter'
 import { cors } from 'hono/cors'
 import { secureHeaders } from 'hono/secure-headers'
-import { env } from '@/lib/env'
-import { HttpStatus } from './lib/const'
-import { ContentfulStatusCode } from 'hono/utils/http-status'
-import { ApiError, ApiResponse } from './lib/http'
+import { HTTPException } from 'hono/http-exception'
+import type { ContentfulStatusCode } from 'hono/utils/http-status'
+import { HTTP, HttpPhrase, HttpStatus } from './lib/http'
 
-import comment from './routes/comment'
-import dashboard from './routes/dashboard'
-import like from './routes/like'
-import playlist from './routes/playlist'
-import subscription from './routes/subscription'
-import tweet from './routes/tweet'
-import user from './routes/user'
-import video from './routes/video'
+import comment from '@/routes/comment'
+import dashboard from '@/routes/dashboard'
+import like from '@/routes/like'
+import playlist from '@/routes/playlist'
+import subscription from '@/routes/subscription'
+import tweet from '@/routes/tweet'
+import user from '@/routes/user'
+import video from '@/routes/video'
 
-const app = new Hono({ strict: false }).basePath('/api/v1')
-
-const allowsOrigins = [env.CLIENT_URL, 'http://localhost:3000']
+const app = new Hono<{ Bindings: CloudflareBindings }>({
+  strict: false,
+}).basePath('/api/v1')
 
 app.use(secureHeaders())
-
-app.use(
-  cors({
-    origin: allowsOrigins,
+app.use('*', async (c, next) => {
+  const { CLIENT_URL } = env(c)
+  const corsHandler = cors({
+    origin: [CLIENT_URL, 'http://localhost:3000'],
     allowHeaders: ['Content-Type', 'Authorization'],
     allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    exposeHeaders: ['Content-Length', 'X-Kuma-Revision'],
-    maxAge: 600,
+    exposeHeaders: ['Content-Length'],
+    maxAge: 86400,
     credentials: true,
   })
-)
+  return corsHandler(c, next)
+})
 
-app.route('/users', user)
-app.route('/tweets', tweet)
-app.route('/subscriptions', subscription)
-app.route('/videos', video)
-app.route('/comments', comment)
-app.route('/likes', like)
-app.route('/playlist', playlist)
-app.route('/dashboard', dashboard)
+const routes = [
+  user,
+  tweet,
+  subscription,
+  video,
+  comment,
+  like,
+  playlist,
+  dashboard,
+] as const
 
-app.get('/healthcheck', c =>
-  c.json(new ApiResponse(HttpStatus.OK, null, 'Health Check Passed'))
+routes.forEach(route => {
+  app.route('/', route)
+})
+
+app.get('/health', c =>
+  c.json(HTTP.Response(HttpPhrase.OK, null), HttpStatus.OK)
 )
 
 app.notFound(c =>
-  c.json(new ApiResponse(HttpStatus.NOT_FOUND, null, 'RESOURCE NOT FOUND'))
+  c.json(HTTP.Response(HttpPhrase.NOT_FOUND, null, false), HttpStatus.NOT_FOUND)
 )
 
 app.onError((err, c) => {
-  let apiError: ApiError
+  if (err instanceof HTTPException) {
+    return c.json(
+      HTTP.Response(err.message, null, false),
+      err.status as ContentfulStatusCode
+    )
+  }
+
   if (err instanceof DrizzleError) {
-    apiError = new ApiError(400, 'DATABASE ERROR')
-  } else if (err instanceof ApiError) {
-    apiError = err
-  } else {
-    apiError = new ApiError(500, err.message || 'INTERNAL SERVER ERROR')
+    return c.json(
+      HTTP.Response('DATABASE ERROR', null, false),
+      HttpStatus.BAD_REQUEST
+    )
   }
 
   return c.json(
-    {
-      ...apiError,
-      message: apiError.message,
-    },
-    apiError.statusCode as ContentfulStatusCode
+    HTTP.Response(err.message || 'INTERNAL SERVER ERROR', null, false),
+    HttpStatus.INTERNAL_SERVER_ERROR
   )
 })
 
