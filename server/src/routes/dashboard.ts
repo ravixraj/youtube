@@ -1,18 +1,21 @@
 import { eq, sql } from 'drizzle-orm'
 import { Hono } from 'hono'
-import { db } from '@/db'
+import { getDb } from '@/db'
 import { subscriptions, users, videos } from '@/db/schema'
-import { HttpStatus } from '@/lib/const'
-import { ApiError, ok } from '@/lib/http'
-import { authMiddleware } from '@/middlewares/auth.middleware'
+import { HTTP, HttpPhrase, HttpStatus } from '@/lib/http'
+import { authMiddleware } from '@/middlewares/auth'
 
-const dashboard = new Hono<{ Variables: { user: string } }>()
+const dashboard = new Hono<{
+  Bindings: CloudflareBindings
+  Variables: { user: string }
+}>().basePath('/dashboard')
 
 dashboard.use(authMiddleware)
 
 dashboard.get('/stats', async c => {
   const userId = c.get('user')
 
+  const db = getDb(c.env.DATABASE_URL)
   const [user] = await db
     .select()
     .from(users)
@@ -20,15 +23,13 @@ dashboard.get('/stats', async c => {
     .limit(1)
 
   if (!user) {
-    throw new ApiError(HttpStatus.NOT_FOUND, 'User not found')
+    throw HTTP.Error(HttpStatus.NOT_FOUND, 'User not found')
   }
 
   const [stats] = await db
     .select({
       totalVideos: sql<number>`count(*)::int`,
       totalViews: sql<number>`coalesce(sum(${videos.viewCount}), 0)::int`,
-      totalLikes: sql<number>`coalesce(sum(${videos.likeCount}), 0)::int`,
-      totalComments: sql<number>`coalesce(sum(${videos.commentCount}), 0)::int`,
     })
     .from(videos)
     .where(eq(videos.userId, userId))
@@ -38,24 +39,22 @@ dashboard.get('/stats', async c => {
     .from(subscriptions)
     .where(eq(subscriptions.channelId, userId))
 
-  return ok(
-    c,
-    {
+  return c.json(
+    HTTP.Response(HttpPhrase.OK, {
       channelStats: {
         totalVideos: stats?.totalVideos ?? 0,
         totalViews: stats?.totalViews ?? 0,
-        totalLikes: stats?.totalLikes ?? 0,
-        totalComments: stats?.totalComments ?? 0,
         subscriberCount: subscriberResult?.count ?? 0,
       },
-    },
-    'Channel statistics retrieved successfully'
+    }),
+    HttpStatus.OK
   )
 })
 
 dashboard.get('/videos', async c => {
   const userId = c.get('user')
 
+  const db = getDb(c.env.DATABASE_URL)
   const channelVideos = await db.query.videos.findMany({
     columns: {
       id: true,
@@ -64,21 +63,19 @@ dashboard.get('/videos', async c => {
       videoFile: true,
       duration: true,
       viewCount: true,
-      likeCount: true,
-      commentCount: true,
       isPublished: true,
-      publishedAt: true,
       createdAt: true,
       updatedAt: true,
     },
-    where: eq(videos.userId, userId),
+    where: {
+      id: userId,
+    },
     orderBy: (t, { desc: d }) => d(t.createdAt),
   })
 
-  return ok(
-    c,
-    { videos: channelVideos },
-    'Channel videos retrieved successfully'
+  return c.json(
+    HTTP.Response(HttpPhrase.OK, { videos: channelVideos }),
+    HttpStatus.OK
   )
 })
 

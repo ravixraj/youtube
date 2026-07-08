@@ -1,19 +1,23 @@
-import { and, eq, not, or } from 'drizzle-orm'
+import { and, eq, not, or, sql } from 'drizzle-orm'
 import { Hono } from 'hono'
+import { env } from 'hono/adapter'
 import { z } from 'zod'
 import { db } from '@/db'
-import { users } from '@/db/schema'
+import { subscriptions, users } from '@/db/schema'
+import { HTTP, HttpPhrase, HttpStatus } from '@/lib/http'
 import { uploadToCloudinary } from '@/lib/cloudinary'
-import { ACCEPTED_MIMES, HttpStatus, MAX_IMAGE_BYTES } from '@/lib/const'
 import {
   generateAccessAndRefreshTokens,
   hashPassword,
   passwordMatch,
+  verifyAccessToken,
   verifyRefreshToken,
 } from '@/lib/helper'
-import { ApiError, created, ok } from '@/lib/http'
 import { zValidator } from '@/lib/zValidator'
-import { authMiddleware } from '@/middlewares/auth.middleware'
+import { authMiddleware } from '@/middlewares/auth'
+
+const MAX_IMAGE_BYTES = 2 * 1024 * 1024
+const ACCEPTED_MIMES = ['image/png', 'image/jpeg', 'image/webp']
 
 const strongPassword = z
   .string()
@@ -43,7 +47,7 @@ const registerSchema = z.object({
     .string()
     .min(6, { message: 'Fullname must be at least 6 characters long' })
     .max(15, { message: 'Fullname must be at most 15 characters long' }),
-  email: z.string().nonempty().email({ message: 'Invalid email address' }),
+  email: z.email({ message: 'Invalid email address' }).nonempty(),
   password: strongPassword,
   avatar: imageFile.optional(),
   coverImage: imageFile.optional(),
@@ -60,14 +64,6 @@ const changePasswordSchema = z.object({
   newPassword: strongPassword,
 })
 
-const forgotPasswordSchema = z.object({
-  email: z.string().nonempty().email({ message: 'Invalid email address' }),
-})
-
-const resetPasswordSchema = z.object({
-  newPassword: strongPassword,
-})
-
 const updateAccountDetailsSchema = z.object({
   fullname: z
     .string()
@@ -81,22 +77,25 @@ const updateAccountDetailsSchema = z.object({
     .optional(),
 })
 
-const user = new Hono<{ Variables: { user: string } }>()
-
-// ── Auth routes ──
+const user = new Hono<{
+  Bindings: CloudflareBindings
+  Variables: { user: string }
+}>().basePath('/users')
 
 user.post('/register', zValidator('form', registerSchema), async c => {
   const { username, fullname, email, password, avatar, coverImage } =
     c.req.valid('form')
 
-  const existing = await db
-    .select({ id: users })
+  const database = db(c.env.DATABASE_URL)
+
+  const existing = await database
+    .select({ id: users.id })
     .from(users)
     .where(or(eq(users.email, email), eq(users.username, username)))
     .limit(1)
 
   if (existing.length > 0) {
-    throw new ApiError(
+    throw HTTP.Error(
       HttpStatus.CONFLICT,
       'User with same email or username already exists'
     )
@@ -104,25 +103,35 @@ user.post('/register', zValidator('form', registerSchema), async c => {
 
   const hashedPassword = await hashPassword(password)
 
-  const avatarUpload =
-    avatar instanceof File ? await uploadToCloudinary(avatar) : null
-  const coverUpload =
-    coverImage instanceof File ? await uploadToCloudinary(coverImage) : null
+  const { CLOUDINARY_CLOUD_NAME, CLOUDINARY_UPLOAD_PRESET } =
+    env<CloudflareBindings>(c)
 
-  const userId = crypto.randomUUID()
-  const now = new Date().toISOString()
+  let avatarUpload = null
+  let coverUpload = null
+  if (avatar) {
+    avatarUpload = await uploadToCloudinary(
+      avatar,
+      CLOUDINARY_CLOUD_NAME,
+      CLOUDINARY_UPLOAD_PRESET
+    )
+  }
+  if (coverImage) {
+    coverUpload = await uploadToCloudinary(
+      coverImage,
+      CLOUDINARY_CLOUD_NAME,
+      CLOUDINARY_UPLOAD_PRESET
+    )
+  }
 
-  const [newUser] = await db
+  const [newUser] = await database
     .insert(users)
     .values({
-      id: userId,
       username,
       fullname,
       email,
       password: hashedPassword,
-      avatar: avatarUpload?.secure_url ?? avatarUpload?.url ?? null,
-      coverImage: coverUpload?.secure_url ?? coverUpload?.url ?? null,
-      updatedAt: now,
+      avatar: avatarUpload?.url,
+      coverImage: coverUpload?.url,
     })
     .returning({
       id: users.id,
@@ -135,20 +144,18 @@ user.post('/register', zValidator('form', registerSchema), async c => {
       updatedAt: users.updatedAt,
     })
 
-  const tokens = await generateAccessAndRefreshTokens({ userId })
-
-  await db
-    .update(users)
-    .set({ refreshToken: tokens.refreshToken, updatedAt: now })
-    .where(eq(users.id, userId))
-
-  return created(c, { user: newUser, tokens }, 'User registered successfully')
+  return c.json(
+    HTTP.Response(HttpPhrase.CREATED, { user: newUser }),
+    HttpStatus.CREATED
+  )
 })
 
 user.post('/login', zValidator('json', loginSchema), async c => {
   const { username, password } = c.req.valid('json')
 
-  const userRecord = await db.query.users.findFirst({
+  const database = db(c.env.DATABASE_URL)
+
+  const userRecord = await database.query.users.findFirst({
     columns: {
       id: true,
       username: true,
@@ -164,16 +171,25 @@ user.post('/login', zValidator('json', loginSchema), async c => {
   })
 
   if (!userRecord) {
-    throw new ApiError(HttpStatus.UNAUTHORIZED, 'Invalid username or password')
+    throw HTTP.Error(HttpStatus.UNAUTHORIZED, 'Invalid username or password')
   }
 
   const isValid = await passwordMatch(password, userRecord.password)
   if (!isValid) {
-    throw new ApiError(HttpStatus.UNAUTHORIZED, 'Invalid username or password')
+    throw HTTP.Error(HttpStatus.UNAUTHORIZED, 'Invalid username or password')
   }
 
-  const tokens = await generateAccessAndRefreshTokens({ userId: userRecord.id })
-  await db
+  const tokens = await generateAccessAndRefreshTokens(
+    { userId: userRecord.id },
+    {
+      accessSecret: c.env.ACCESS_TOKEN_SECRET,
+      accessExpiry: Number(c.env.ACCESS_TOKEN_EXPIRY),
+      refreshSecret: c.env.REFRESH_TOKEN_SECRET,
+      refreshExpiry: Number(c.env.REFRESH_TOKEN_EXPIRY),
+    }
+  )
+
+  await database
     .update(users)
     .set({
       refreshToken: tokens.refreshToken,
@@ -183,37 +199,28 @@ user.post('/login', zValidator('json', loginSchema), async c => {
 
   const { password: _, ...safeUser } = userRecord
 
-  return ok(c, { user: safeUser, tokens }, 'Login successful')
+  return c.json(
+    HTTP.Response(HttpPhrase.OK, { user: safeUser, tokens }),
+    HttpStatus.OK
+  )
 })
-
-user.post(
-  '/forgot-password',
-  zValidator('json', forgotPasswordSchema),
-  async c => {
-    return ok(c, null, 'Password reset email sent if the email exists')
-  }
-)
-
-user.post(
-  '/reset-password',
-  zValidator('json', resetPasswordSchema),
-  async c => {
-    return ok(c, null, 'Password reset successfully')
-  }
-)
 
 user.post('/refresh-token', zValidator('json', refreshTokenSchema), async c => {
   const { refreshToken } = c.req.valid('json')
 
-  const userPayload = await verifyRefreshToken(refreshToken)
+  const userPayload = await verifyRefreshToken(
+    refreshToken,
+    c.env.REFRESH_TOKEN_SECRET
+  )
 
   if (!userPayload?.userId || typeof userPayload.userId !== 'string') {
-    throw new ApiError(HttpStatus.UNAUTHORIZED, 'Invalid refresh token')
+    throw HTTP.Error(HttpStatus.UNAUTHORIZED, 'Invalid refresh token')
   }
 
   const userId = userPayload.userId
+  const database = db(c.env.DATABASE_URL)
 
-  const userRecord = await db.query.users.findFirst({
+  const userRecord = await database.query.users.findFirst({
     columns: {
       id: true,
       refreshToken: true,
@@ -222,12 +229,20 @@ user.post('/refresh-token', zValidator('json', refreshTokenSchema), async c => {
   })
 
   if (!userRecord || userRecord.refreshToken !== refreshToken) {
-    throw new ApiError(HttpStatus.UNAUTHORIZED, 'Refresh token not recognized')
+    throw HTTP.Error(HttpStatus.UNAUTHORIZED, 'Refresh token not recognized')
   }
 
-  const tokens = await generateAccessAndRefreshTokens({ userId: userRecord.id })
+  const tokens = await generateAccessAndRefreshTokens(
+    { userId: userRecord.id },
+    {
+      accessSecret: c.env.ACCESS_TOKEN_SECRET,
+      accessExpiry: Number(c.env.ACCESS_TOKEN_EXPIRY),
+      refreshSecret: c.env.REFRESH_TOKEN_SECRET,
+      refreshExpiry: Number(c.env.REFRESH_TOKEN_EXPIRY),
+    }
+  )
 
-  await db
+  await database
     .update(users)
     .set({
       refreshToken: tokens.refreshToken,
@@ -235,18 +250,20 @@ user.post('/refresh-token', zValidator('json', refreshTokenSchema), async c => {
     })
     .where(eq(users.id, userRecord.id))
 
-  return ok(c, { tokens }, 'Access token refreshed')
+  return c.json(HTTP.Response(HttpPhrase.OK, { tokens }), HttpStatus.OK)
 })
 
 user.use('/logout', authMiddleware)
 user.post('/logout', async c => {
   const userId = c.get('user')
-  await db
+  const database = db(c.env.DATABASE_URL)
+
+  await database
     .update(users)
     .set({ refreshToken: null, updatedAt: new Date().toISOString() })
     .where(eq(users.id, userId))
 
-  return ok(c, null, 'Logged out successfully')
+  return c.json(HTTP.Response(HttpPhrase.OK, null), HttpStatus.OK)
 })
 
 user.use('/change-password', authMiddleware)
@@ -257,7 +274,9 @@ user.post(
     const userId = c.get('user')
     const { currentPassword, newPassword } = c.req.valid('json')
 
-    const userRecord = await db.query.users.findFirst({
+    const database = db(c.env.DATABASE_URL)
+
+    const userRecord = await database.query.users.findFirst({
       columns: {
         id: true,
         password: true,
@@ -266,19 +285,16 @@ user.post(
     })
 
     if (!userRecord) {
-      throw new ApiError(HttpStatus.NOT_FOUND, 'User not found')
+      throw HTTP.Error(HttpStatus.NOT_FOUND, 'User not found')
     }
 
     const isValid = await passwordMatch(currentPassword, userRecord.password)
     if (!isValid) {
-      throw new ApiError(
-        HttpStatus.UNAUTHORIZED,
-        'Current password is incorrect'
-      )
+      throw HTTP.Error(HttpStatus.UNAUTHORIZED, 'Current password is incorrect')
     }
 
     const hashedPassword = await hashPassword(newPassword)
-    await db
+    await database
       .update(users)
       .set({
         password: hashedPassword,
@@ -286,15 +302,16 @@ user.post(
       })
       .where(eq(users.id, userId))
 
-    return ok(c, null, 'Password changed successfully')
+    return c.json(HTTP.Response(HttpPhrase.OK, null), HttpStatus.OK)
   }
 )
 
 user.use('/current-user', authMiddleware)
 user.get('/current-user', async c => {
   const userId = c.get('user')
+  const database = db(c.env.DATABASE_URL)
 
-  const userRecord = await db.query.users.findFirst({
+  const userRecord = await database.query.users.findFirst({
     columns: {
       id: true,
       username: true,
@@ -309,13 +326,14 @@ user.get('/current-user', async c => {
   })
 
   if (!userRecord) {
-    throw new ApiError(HttpStatus.NOT_FOUND, 'User not found')
+    throw HTTP.Error(HttpStatus.NOT_FOUND, 'User not found')
   }
 
-  return ok(c, { user: userRecord }, 'Current user retrieved successfully')
+  return c.json(
+    HTTP.Response(HttpPhrase.OK, { user: userRecord }),
+    HttpStatus.OK
+  )
 })
-
-// ── User profile routes ──
 
 user.use('/update-account', authMiddleware)
 user.patch(
@@ -325,26 +343,28 @@ user.patch(
     const userId = c.get('user')
     const { fullname, username, email } = c.req.valid('json')
 
+    const database = db(c.env.DATABASE_URL)
+
     if (email || username) {
-      const conditions = []
+      const conditions: ReturnType<typeof eq>[] = []
       if (email) conditions.push(eq(users.email, email))
       if (username) conditions.push(eq(users.username, username))
 
-      const [existingUser] = await db
+      const [existingUser] = await database
         .select()
         .from(users)
         .where(and(or(...conditions), not(eq(users.id, userId))))
         .limit(1)
 
       if (existingUser) {
-        throw new ApiError(
+        throw HTTP.Error(
           HttpStatus.CONFLICT,
           'Email or username already exists'
         )
       }
     }
 
-    const [updatedUser] = await db
+    const [updatedUser] = await database
       .update(users)
       .set({
         fullname: fullname ?? undefined,
@@ -364,7 +384,10 @@ user.patch(
         updatedAt: users.updatedAt,
       })
 
-    return ok(c, { user: updatedUser }, 'Account details updated successfully')
+    return c.json(
+      HTTP.Response(HttpPhrase.OK, { user: updatedUser }),
+      HttpStatus.OK
+    )
   }
 )
 
@@ -377,15 +400,23 @@ user.patch(
     const { avatar } = c.req.valid('form')
 
     if (!(avatar instanceof File)) {
-      throw new ApiError(
-        HttpStatus.BAD_REQUEST,
-        'Valid avatar file is required'
-      )
+      throw HTTP.Error(HttpStatus.BAD_REQUEST, 'Valid avatar file is required')
     }
 
-    const avatarUrl = await uploadToCloudinary(avatar)
+    const { CLOUDINARY_CLOUD_NAME, CLOUDINARY_UPLOAD_PRESET } =
+      env<CloudflareBindings>(c)
+    const avatarUrl = await uploadToCloudinary(
+      avatar,
+      CLOUDINARY_CLOUD_NAME,
+      CLOUDINARY_UPLOAD_PRESET
+    )
 
-    const [updatedUser] = await db
+    if (!avatarUrl?.secure_url && !avatarUrl?.url) {
+      throw HTTP.Error(HttpStatus.BAD_REQUEST, 'Error while uploading avatar')
+    }
+
+    const database = db(c.env.DATABASE_URL)
+    const [updatedUser] = await database
       .update(users)
       .set({
         avatar: avatarUrl?.secure_url || avatarUrl?.url,
@@ -403,7 +434,10 @@ user.patch(
         updatedAt: users.updatedAt,
       })
 
-    return ok(c, { user: updatedUser }, 'Avatar updated successfully')
+    return c.json(
+      HTTP.Response(HttpPhrase.OK, { user: updatedUser }),
+      HttpStatus.OK
+    )
   }
 )
 
@@ -416,15 +450,29 @@ user.patch(
     const { coverImage } = c.req.valid('form')
 
     if (!(coverImage instanceof File)) {
-      throw new ApiError(
+      throw HTTP.Error(
         HttpStatus.BAD_REQUEST,
         'Valid cover image file is required'
       )
     }
 
-    const coverImageUrl = await uploadToCloudinary(coverImage)
+    const { CLOUDINARY_CLOUD_NAME, CLOUDINARY_UPLOAD_PRESET } =
+      env<CloudflareBindings>(c)
+    const coverImageUrl = await uploadToCloudinary(
+      coverImage,
+      CLOUDINARY_CLOUD_NAME,
+      CLOUDINARY_UPLOAD_PRESET
+    )
 
-    const [updatedUser] = await db
+    if (!coverImageUrl?.secure_url && !coverImageUrl?.url) {
+      throw HTTP.Error(
+        HttpStatus.BAD_REQUEST,
+        'Error while uploading cover image'
+      )
+    }
+
+    const database = db(c.env.DATABASE_URL)
+    const [updatedUser] = await database
       .update(users)
       .set({
         coverImage: coverImageUrl?.secure_url || coverImageUrl?.url,
@@ -442,43 +490,92 @@ user.patch(
         updatedAt: users.updatedAt,
       })
 
-    return ok(c, { user: updatedUser }, 'Cover image updated successfully')
+    return c.json(
+      HTTP.Response(HttpPhrase.OK, { user: updatedUser }),
+      HttpStatus.OK
+    )
   }
 )
 
 user.get('/c/:username', async c => {
   const username = c.req.param('username')
 
-  const channelUser = await db.query.users.findFirst({
-    columns: {
-      id: true,
-      fullname: true,
-      username: true,
-      email: true,
-      avatar: true,
-      coverImage: true,
-      createdAt: true,
-      updatedAt: true,
-    },
-    where: eq(users.username, username),
-  })
-
-  if (!channelUser) {
-    throw new ApiError(HttpStatus.NOT_FOUND, 'User not found')
+  if (!username?.trim()) {
+    throw HTTP.Error(HttpStatus.BAD_REQUEST, 'Username is missing')
   }
 
-  return ok(
-    c,
-    { user: channelUser },
-    'User channel profile retrieved successfully'
+  const database = db(c.env.DATABASE_URL)
+
+  const [channelUser] = await database
+    .select({
+      id: users.id,
+      fullname: users.fullname,
+      username: users.username,
+      email: users.email,
+      avatar: users.avatar,
+      coverImage: users.coverImage,
+      createdAt: users.createdAt,
+      updatedAt: users.updatedAt,
+    })
+    .from(users)
+    .where(eq(users.username, username.toLowerCase()))
+    .limit(1)
+
+  if (!channelUser) {
+    throw HTTP.Error(HttpStatus.NOT_FOUND, 'Channel does not exist')
+  }
+
+  const [subscriberCount] = await database
+    .select({ count: sql<number>`count(*)::int` })
+    .from(subscriptions)
+    .where(eq(subscriptions.channelId, channelUser.id))
+
+  const [subscribedToCount] = await database
+    .select({ count: sql<number>`count(*)::int` })
+    .from(subscriptions)
+    .where(eq(subscriptions.subscriberId, channelUser.id))
+
+  let isSubscribed = false
+  const authHeader = c.req.header('authorization')
+  if (authHeader) {
+    const [type, token] = authHeader.split(' ')
+    if (type?.toLowerCase() === 'bearer' && token) {
+      const payload = await verifyAccessToken(token, c.env.ACCESS_TOKEN_SECRET)
+      const currentUserId = payload?.userId as string | undefined
+      if (currentUserId) {
+        const [existingSub] = await database
+          .select({ id: subscriptions.id })
+          .from(subscriptions)
+          .where(
+            and(
+              eq(subscriptions.subscriberId, currentUserId),
+              eq(subscriptions.channelId, channelUser.id)
+            )
+          )
+          .limit(1)
+        isSubscribed = !!existingSub
+      }
+    }
+  }
+
+  return c.json(
+    HTTP.Response(HttpPhrase.OK, {
+      user: {
+        ...channelUser,
+        subscribersCount: subscriberCount?.count ?? 0,
+        channelsSubscribedToCount: subscribedToCount?.count ?? 0,
+        isSubscribed,
+      },
+    }),
+    HttpStatus.OK
   )
 })
 
 user.use('/history', authMiddleware)
 user.get('/history', async c => {
   const _userId = c.get('user')
-  const history: unknown[] = []
-  return ok(c, { history }, 'Watch history retrieved successfully')
+  const _database = db(c.env.DATABASE_URL)
+  return c.json(HTTP.Response(HttpPhrase.OK, { history: [] }), HttpStatus.OK)
 })
 
 export default user
