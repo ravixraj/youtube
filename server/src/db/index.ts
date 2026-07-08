@@ -1,7 +1,12 @@
 import { neon } from '@neondatabase/serverless'
 import { drizzle } from 'drizzle-orm/neon-http'
-import { env } from '@/lib/env'
 import { relations } from './relations'
 
-const sql = neon(env.DATABASE_URL)
-export const db = drizzle({ client: sql, relations })
+let client: ReturnType<typeof neon> | null = null
+
+export const db = (databaseUrl: string) => {
+  if (!client) {
+    client = neon(databaseUrl)
+  }
+  return drizzle({ client, relations })
+}
