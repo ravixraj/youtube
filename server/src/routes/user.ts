@@ -2,7 +2,7 @@ import { and, eq, not, or, sql } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { env } from 'hono/adapter'
 import { z } from 'zod'
-import { db } from '@/db'
+import { db as database } from '@/db'
 import { subscriptions, users } from '@/db/schema'
 import { HTTP, HttpPhrase, HttpStatus } from '@/lib/http'
 import { uploadToCloudinary } from '@/lib/cloudinary'
@@ -88,9 +88,9 @@ user.post('/register', zValidator('form', registerSchema), async c => {
   const { username, fullname, email, password, avatar, coverImage } =
     c.req.valid('form')
 
-  const database = db(c.env.DATABASE_URL)
+  const db = database(c.env.DATABASE_URL)
 
-  const [existingUser] = await database
+  const [existingUser] = await db
     .select({ id: users.id })
     .from(users)
     .where(or(eq(users.email, email), eq(users.username, username)))
@@ -108,45 +108,59 @@ user.post('/register', zValidator('form', registerSchema), async c => {
   const { CLOUDINARY_CLOUD_NAME, CLOUDINARY_UPLOAD_PRESET } =
     env<CloudflareBindings>(c)
 
-  let avatarUpload = null
-  let coverUpload = null
-  if (avatar) {
-    avatarUpload = await uploadToCloudinary(
-      avatar,
-      CLOUDINARY_CLOUD_NAME,
-      CLOUDINARY_UPLOAD_PRESET
-    )
-  }
-  if (coverImage) {
-    coverUpload = await uploadToCloudinary(
-      coverImage,
-      CLOUDINARY_CLOUD_NAME,
-      CLOUDINARY_UPLOAD_PRESET
-    )
-  }
+  const [avatarUpload, coverUpload] = await Promise.all([
+    avatar
+      ? uploadToCloudinary(
+          avatar,
+          CLOUDINARY_CLOUD_NAME,
+          CLOUDINARY_UPLOAD_PRESET
+        )
+      : null,
+    coverImage
+      ? uploadToCloudinary(
+          coverImage,
+          CLOUDINARY_CLOUD_NAME,
+          CLOUDINARY_UPLOAD_PRESET
+        )
+      : null,
+  ])
 
-  const [newUser] = await database
-    .insert(users)
-    .values({
-      username,
-      fullname,
-      email,
-      password: hashedPassword,
-      // @ts-ignore
-      avatar: avatarUpload?.url,
-      // @ts-ignore
-      coverImage: coverUpload?.url,
-    })
-    .returning({
-      id: users.id,
-      username: users.username,
-      fullname: users.fullname,
-      email: users.email,
-      avatar: users.avatar,
-      coverImage: users.coverImage,
-      createdAt: users.createdAt,
-      updatedAt: users.updatedAt,
-    })
+  let newUser
+  try {
+    ;[newUser] = await db
+      .insert(users)
+      .values({
+        username,
+        fullname,
+        email,
+        password: hashedPassword,
+        // @ts-ignore
+        avatar: avatarUpload?.url,
+        // @ts-ignore
+        coverImage: coverUpload?.url,
+      })
+      .returning({
+        id: users.id,
+        username: users.username,
+        fullname: users.fullname,
+        email: users.email,
+        avatar: users.avatar,
+        coverImage: users.coverImage,
+        createdAt: users.createdAt,
+        updatedAt: users.updatedAt,
+      })
+  } catch (err: any) {
+    if (err?.code === '23505') {
+      throw HTTP.Error(
+        HttpStatus.CONFLICT,
+        'User with same email or username already exists'
+      )
+    }
+    throw HTTP.Error(
+      HttpStatus.INTERNAL_SERVER_ERROR,
+      'Error while creating user'
+    )
+  }
 
   return c.json(
     HTTP.Response(HttpPhrase.CREATED, { user: newUser }),
@@ -157,20 +171,9 @@ user.post('/register', zValidator('form', registerSchema), async c => {
 user.post('/login', zValidator('json', loginSchema), async c => {
   const { username, password } = c.req.valid('json')
 
-  const database = db(c.env.DATABASE_URL)
+  const db = database(c.env.DATABASE_URL)
 
-  const userRecord = await database.query.users.findFirst({
-    columns: {
-      id: true,
-      username: true,
-      fullname: true,
-      email: true,
-      password: true,
-      avatar: true,
-      coverImage: true,
-      createdAt: true,
-      updatedAt: true,
-    },
+  const userRecord = await db.query.users.findFirst({
     where: {
       username: username,
     },
@@ -195,7 +198,7 @@ user.post('/login', zValidator('json', loginSchema), async c => {
     }
   )
 
-  await database
+  await db
     .update(users)
     .set({
       refreshToken: tokens.refreshToken,
@@ -205,7 +208,7 @@ user.post('/login', zValidator('json', loginSchema), async c => {
 
   setAuthCookies(c, tokens.accessToken, tokens.refreshToken)
 
-  const { password: _, ...safeUser } = userRecord
+  const { password: _, refreshToken: __, ...safeUser } = userRecord
 
   return c.json(
     HTTP.Response(HttpPhrase.OK, { user: safeUser, tokens }),
@@ -226,9 +229,9 @@ user.post('/refresh-token', zValidator('json', refreshTokenSchema), async c => {
   }
 
   const userId = userPayload.userId
-  const database = db(c.env.DATABASE_URL)
+  const db = database(c.env.DATABASE_URL)
 
-  const userRecord = await database.query.users.findFirst({
+  const userRecord = await db.query.users.findFirst({
     columns: {
       id: true,
       refreshToken: true,
@@ -252,7 +255,7 @@ user.post('/refresh-token', zValidator('json', refreshTokenSchema), async c => {
     }
   )
 
-  await database
+  await db
     .update(users)
     .set({
       refreshToken: tokens.refreshToken,
@@ -268,12 +271,9 @@ user.post('/refresh-token', zValidator('json', refreshTokenSchema), async c => {
 user.use('/logout', authMiddleware)
 user.post('/logout', async c => {
   const userId = c.get('user')
-  const database = db(c.env.DATABASE_URL)
+  const db = database(c.env.DATABASE_URL)
 
-  await database
-    .update(users)
-    .set({ refreshToken: null })
-    .where(eq(users.id, userId))
+  await db.update(users).set({ refreshToken: null }).where(eq(users.id, userId))
 
   clearAuthCookies(c)
 
@@ -288,9 +288,9 @@ user.post(
     const userId = c.get('user')
     const { currentPassword, newPassword } = c.req.valid('json')
 
-    const database = db(c.env.DATABASE_URL)
+    const db = database(c.env.DATABASE_URL)
 
-    const userRecord = await database.query.users.findFirst({
+    const userRecord = await db.query.users.findFirst({
       columns: {
         id: true,
         password: true,
@@ -310,7 +310,7 @@ user.post(
     }
 
     const hashedPassword = await hashPassword(newPassword)
-    await database
+    await db
       .update(users)
       .set({
         password: hashedPassword,
@@ -325,9 +325,9 @@ user.post(
 user.use('/current-user', authMiddleware)
 user.get('/current-user', async c => {
   const userId = c.get('user')
-  const database = db(c.env.DATABASE_URL)
+  const db = database(c.env.DATABASE_URL)
 
-  const userRecord = await database.query.users.findFirst({
+  const userRecord = await db.query.users.findFirst({
     columns: {
       id: true,
       username: true,
@@ -361,14 +361,14 @@ user.patch(
     const userId = c.get('user')
     const { fullname, username, email } = c.req.valid('json')
 
-    const database = db(c.env.DATABASE_URL)
+    const db = database(c.env.DATABASE_URL)
 
     if (email || username) {
       const conditions: ReturnType<typeof eq>[] = []
       if (email) conditions.push(eq(users.email, email))
       if (username) conditions.push(eq(users.username, username))
 
-      const [existingUser] = await database
+      const [existingUser] = await db
         .select()
         .from(users)
         .where(and(or(...conditions), not(eq(users.id, userId))))
@@ -382,7 +382,7 @@ user.patch(
       }
     }
 
-    const [updatedUser] = await database
+    const [updatedUser] = await db
       .update(users)
       .set({
         fullname: fullname ?? undefined,
@@ -434,8 +434,8 @@ user.patch(
       throw HTTP.Error(HttpStatus.BAD_REQUEST, 'Error while uploading avatar')
     }
 
-    const database = db(c.env.DATABASE_URL)
-    const [updatedUser] = await database
+    const db = database(c.env.DATABASE_URL)
+    const [updatedUser] = await db
       .update(users)
       .set({
         // @ts-ignore
@@ -492,8 +492,8 @@ user.patch(
       )
     }
 
-    const database = db(c.env.DATABASE_URL)
-    const [updatedUser] = await database
+    const db = database(c.env.DATABASE_URL)
+    const [updatedUser] = await db
       .update(users)
       .set({
         // @ts-ignore
@@ -526,9 +526,9 @@ user.get('/c/:username', async c => {
     throw HTTP.Error(HttpStatus.BAD_REQUEST, 'Username is missing')
   }
 
-  const database = db(c.env.DATABASE_URL)
+  const db = database(c.env.DATABASE_URL)
 
-  const [channelUser] = await database
+  const [channelUser] = await db
     .select({
       id: users.id,
       fullname: users.fullname,
@@ -547,15 +547,16 @@ user.get('/c/:username', async c => {
     throw HTTP.Error(HttpStatus.NOT_FOUND, 'Channel does not exist')
   }
 
-  const [subscriberCount] = await database
-    .select({ count: sql<number>`count(*)::int` })
-    .from(subscriptions)
-    .where(eq(subscriptions.channelId, channelUser.id))
-
-  const [subscribedToCount] = await database
-    .select({ count: sql<number>`count(*)::int` })
-    .from(subscriptions)
-    .where(eq(subscriptions.subscriberId, channelUser.id))
+  const [[subscriberCount], [subscribedToCount]] = await Promise.all([
+    db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(subscriptions)
+      .where(eq(subscriptions.channelId, channelUser.id)),
+    db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(subscriptions)
+      .where(eq(subscriptions.subscriberId, channelUser.id)),
+  ])
 
   let isSubscribed = false
   const authHeader = c.req.header('authorization')
@@ -565,7 +566,7 @@ user.get('/c/:username', async c => {
       const payload = await verifyAccessToken(token, c.env.ACCESS_TOKEN_SECRET)
       const currentUserId = payload?.userId as string | undefined
       if (currentUserId) {
-        const [existingSub] = await database
+        const [existingSub] = await db
           .select({ id: subscriptions.id })
           .from(subscriptions)
           .where(

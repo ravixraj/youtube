@@ -1,6 +1,6 @@
 import { eq, sql } from 'drizzle-orm'
 import { Hono } from 'hono'
-import { db } from '@/db'
+import { db as database } from '@/db'
 import { subscriptions, users, videos } from '@/db/schema'
 import { HTTP, HttpPhrase, HttpStatus } from '@/lib/http'
 import { authMiddleware } from '@/middlewares/auth'
@@ -15,8 +15,8 @@ dashboard.use(authMiddleware)
 dashboard.get('/stats', async c => {
   const userId = c.get('user')
 
-  const database = db(c.env.DATABASE_URL)
-  const [user] = await database
+  const db = database(c.env.DATABASE_URL)
+  const [user] = await db
     .select()
     .from(users)
     .where(eq(users.id, userId))
@@ -26,7 +26,7 @@ dashboard.get('/stats', async c => {
     throw HTTP.Error(HttpStatus.NOT_FOUND, 'User not found')
   }
 
-  const [stats] = await database
+  const [stats] = await db
     .select({
       totalVideos: sql<number>`count(*)::int`,
       totalViews: sql<number>`coalesce(sum(${videos.viewCount}), 0)::int`,
@@ -34,7 +34,7 @@ dashboard.get('/stats', async c => {
     .from(videos)
     .where(eq(videos.userId, userId))
 
-  const [subscriberResult] = await database
+  const [subscriberResult] = await db
     .select({ count: sql<number>`count(*)::int` })
     .from(subscriptions)
     .where(eq(subscriptions.channelId, userId))
@@ -54,8 +54,8 @@ dashboard.get('/stats', async c => {
 dashboard.get('/videos', async c => {
   const userId = c.get('user')
 
-  const database = db(c.env.DATABASE_URL)
-  const channelVideos = await database.query.videos.findMany({
+  const db = database(c.env.DATABASE_URL)
+  const channelVideos = await db.query.videos.findMany({
     columns: {
       id: true,
       title: true,
