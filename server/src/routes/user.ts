@@ -519,12 +519,12 @@ user.patch(
   }
 )
 
-user.get('/c/:username', async c => {
-  const username = c.req.param('username')
+const usernameParam = z.object({
+  username: z.string().min(1, 'Username is required').max(12).trim(),
+})
 
-  if (!username?.trim()) {
-    throw HTTP.Error(HttpStatus.BAD_REQUEST, 'Username is missing')
-  }
+user.get('/c/:username', zValidator('param', usernameParam), async c => {
+  const { username } = c.req.valid('param')
 
   const db = database(c.env.DATABASE_URL)
 

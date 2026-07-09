@@ -7,6 +7,10 @@ import { db as database } from '@/db'
 import { tweets } from '@/db/schema'
 import { and, eq } from 'drizzle-orm'
 
+const tweetIdParam = z.object({ tweetId: z.uuid('Invalid tweet ID') })
+
+const userIdParam = z.object({ userId: z.uuid('Invalid user ID') })
+
 const createTweetSchema = z.object({
   content: z
     .string()
@@ -26,8 +30,8 @@ const tweet = new Hono<{
   Variables: { user: string }
 }>().basePath('/tweets')
 
-tweet.get('/user/:userId', async c => {
-  const { userId } = c.req.param()
+tweet.get('/user/:userId', zValidator('param', userIdParam), async c => {
+  const { userId } = c.req.valid('param')
 
   const db = database(c.env.DATABASE_URL)
 
@@ -77,44 +81,49 @@ tweet.post('/', zValidator('json', createTweetSchema), async c => {
   )
 })
 
-tweet.patch('/:tweetId', zValidator('json', updateTweetSchema), async c => {
-  const userId = c.get('user')
-  const { tweetId } = c.req.param()
-  const { content } = c.req.valid('json')
+tweet.patch(
+  '/:tweetId',
+  zValidator('param', tweetIdParam),
+  zValidator('json', updateTweetSchema),
+  async c => {
+    const userId = c.get('user')
+    const { tweetId } = c.req.valid('param')
+    const { content } = c.req.valid('json')
 
-  const db = database(c.env.DATABASE_URL)
+    const db = database(c.env.DATABASE_URL)
 
-  const [updatedTweet] = await db
-    .update(tweets)
-    .set({
-      content,
-      updatedAt: new Date().toISOString(),
-    })
-    .where(and(eq(tweets.id, tweetId), eq(tweets.userId, userId)))
-    .returning({
-      id: tweets.id,
-      userId: tweets.userId,
-      content: tweets.content,
-      createdAt: tweets.createdAt,
-      updatedAt: tweets.updatedAt,
-    })
+    const [updatedTweet] = await db
+      .update(tweets)
+      .set({
+        content,
+        updatedAt: new Date().toISOString(),
+      })
+      .where(and(eq(tweets.id, tweetId), eq(tweets.userId, userId)))
+      .returning({
+        id: tweets.id,
+        userId: tweets.userId,
+        content: tweets.content,
+        createdAt: tweets.createdAt,
+        updatedAt: tweets.updatedAt,
+      })
 
-  if (!updatedTweet) {
-    throw HTTP.Error(
-      HttpStatus.NOT_FOUND,
-      'Tweet not found or you are not authorized to update it'
+    if (!updatedTweet) {
+      throw HTTP.Error(
+        HttpStatus.NOT_FOUND,
+        'Tweet not found or you are not authorized to update it'
+      )
+    }
+
+    return c.json(
+      HTTP.Response(HttpPhrase.OK, { tweet: updatedTweet }),
+      HttpStatus.OK
     )
   }
+)
 
-  return c.json(
-    HTTP.Response(HttpPhrase.OK, { tweet: updatedTweet }),
-    HttpStatus.OK
-  )
-})
-
-tweet.delete('/:tweetId', async c => {
+tweet.delete('/:tweetId', zValidator('param', tweetIdParam), async c => {
   const userId = c.get('user')
-  const { tweetId } = c.req.param()
+  const { tweetId } = c.req.valid('param')
 
   const db = database(c.env.DATABASE_URL)
 

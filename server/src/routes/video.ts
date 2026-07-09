@@ -12,6 +12,10 @@ import { and, eq, sql } from 'drizzle-orm'
 const MAX_IMAGE_BYTES = 2 * 1024 * 1024
 const ACCEPTED_MIMES = ['image/png', 'image/jpeg', 'image/webp']
 
+const videoIdParam = z.object({ videoId: z.uuid('Invalid video ID') })
+
+const userIdParam = z.object({ userId: z.uuid('Invalid user ID') })
+
 export const searchVideosSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(50).default(10),
@@ -96,9 +100,9 @@ video.get('/', zValidator('query', searchVideosSchema), async c => {
   return c.json(HTTP.Response(HttpPhrase.OK, { videos }), HttpStatus.OK)
 })
 
-video.get('/:videoId', async c => {
+video.get('/:videoId', zValidator('param', videoIdParam), async c => {
   const userId = c.get('user')
-  const { videoId } = c.req.param()
+  const { videoId } = c.req.valid('param')
 
   const db = database(c.env.DATABASE_URL)
 
@@ -174,53 +178,58 @@ video.post('/', zValidator('form', createVideoSchema), async c => {
   )
 })
 
-video.patch('/:videoId', zValidator('json', updateVideoSchema), async c => {
+video.patch(
+  '/:videoId',
+  zValidator('param', videoIdParam),
+  zValidator('json', updateVideoSchema),
+  async c => {
+    const userId = c.get('user')
+    const { videoId } = c.req.valid('param')
+
+    const { title, description, thumbnail } = c.req.valid('json')
+
+    const thumbnailUpload = await uploadToCloudinary(
+      thumbnail,
+      c.env.CLOUDINARY_CLOUD_NAME,
+      c.env.CLOUDINARY_UPLOAD_PRESET
+    )
+
+    const db = database(c.env.DATABASE_URL)
+
+    const [updatedVideo] = await db
+      .update(videos)
+      .set({
+        title,
+        description,
+        // @ts-ignore
+        thumbnail: thumbnailUpload?.url,
+        updatedAt: new Date().toISOString(),
+      })
+      .where(and(eq(videos.id, videoId), eq(videos.userId, userId)))
+      .returning({
+        id: videos.id,
+        userId: videos.userId,
+        videoFile: videos.videoFile,
+        thumbnail: videos.thumbnail,
+        title: videos.title,
+        description: videos.description,
+        duration: videos.duration,
+        viewCount: videos.viewCount,
+        isPublished: videos.isPublished,
+        createdAt: videos.createdAt,
+        updatedAt: videos.updatedAt,
+      })
+
+    return c.json(
+      HTTP.Response(HttpPhrase.OK, { video: updatedVideo }),
+      HttpStatus.OK
+    )
+  }
+)
+
+video.delete('/:videoId', zValidator('param', videoIdParam), async c => {
   const userId = c.get('user')
-  const { videoId } = c.req.param()
-
-  const { title, description, thumbnail } = c.req.valid('json')
-
-  const thumbnailUpload = await uploadToCloudinary(
-    thumbnail,
-    c.env.CLOUDINARY_CLOUD_NAME,
-    c.env.CLOUDINARY_UPLOAD_PRESET
-  )
-
-  const db = database(c.env.DATABASE_URL)
-
-  const [updatedVideo] = await db
-    .update(videos)
-    .set({
-      title,
-      description,
-      // @ts-ignore
-      thumbnail: thumbnailUpload?.url,
-      updatedAt: new Date().toISOString(),
-    })
-    .where(and(eq(videos.id, videoId), eq(videos.userId, userId)))
-    .returning({
-      id: videos.id,
-      userId: videos.userId,
-      videoFile: videos.videoFile,
-      thumbnail: videos.thumbnail,
-      title: videos.title,
-      description: videos.description,
-      duration: videos.duration,
-      viewCount: videos.viewCount,
-      isPublished: videos.isPublished,
-      createdAt: videos.createdAt,
-      updatedAt: videos.updatedAt,
-    })
-
-  return c.json(
-    HTTP.Response(HttpPhrase.OK, { video: updatedVideo }),
-    HttpStatus.OK
-  )
-})
-
-video.delete('/:videoId', async c => {
-  const userId = c.get('user')
-  const { videoId } = c.req.param()
+  const { videoId } = c.req.valid('param')
 
   const db = database(c.env.DATABASE_URL)
 
@@ -247,38 +256,42 @@ video.delete('/:videoId', async c => {
   )
 })
 
-video.patch('/toggle/publish/:videoId', async c => {
-  const userId = c.get('user')
-  const { videoId } = c.req.param()
+video.patch(
+  '/toggle/publish/:videoId',
+  zValidator('param', videoIdParam),
+  async c => {
+    const userId = c.get('user')
+    const { videoId } = c.req.valid('param')
 
-  const db = database(c.env.DATABASE_URL)
+    const db = database(c.env.DATABASE_URL)
 
-  const [updatedVideo] = await db
-    .update(videos)
-    .set({
-      isPublished: sql`NOT ${videos.isPublished}`,
-      updatedAt: new Date().toISOString(),
-    })
-    .where(and(eq(videos.id, videoId), eq(videos.userId, userId)))
-    .returning({
-      id: videos.id,
-      userId: videos.userId,
-      videoFile: videos.videoFile,
-      thumbnail: videos.thumbnail,
-      title: videos.title,
-      description: videos.description,
-      duration: videos.duration,
-      viewCount: videos.viewCount,
-      isPublished: videos.isPublished,
-      createdAt: videos.createdAt,
-      updatedAt: videos.updatedAt,
-    })
+    const [updatedVideo] = await db
+      .update(videos)
+      .set({
+        isPublished: sql`NOT ${videos.isPublished}`,
+        updatedAt: new Date().toISOString(),
+      })
+      .where(and(eq(videos.id, videoId), eq(videos.userId, userId)))
+      .returning({
+        id: videos.id,
+        userId: videos.userId,
+        videoFile: videos.videoFile,
+        thumbnail: videos.thumbnail,
+        title: videos.title,
+        description: videos.description,
+        duration: videos.duration,
+        viewCount: videos.viewCount,
+        isPublished: videos.isPublished,
+        createdAt: videos.createdAt,
+        updatedAt: videos.updatedAt,
+      })
 
-  return c.json(
-    HTTP.Response(HttpPhrase.OK, { video: updatedVideo }),
-    HttpStatus.OK
-  )
-})
+    return c.json(
+      HTTP.Response(HttpPhrase.OK, { video: updatedVideo }),
+      HttpStatus.OK
+    )
+  }
+)
 
 export default video
 export type VideoType = typeof video
