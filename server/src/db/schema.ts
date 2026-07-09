@@ -36,9 +36,9 @@ export const videos = pgTable('videos', {
     .notNull()
     .references(() => users.id, { onDelete: 'cascade' }),
   videoFile: text().notNull(),
-  thumbnail: text(),
+  thumbnail: text().notNull(),
   title: varchar({ length: 60 }).notNull(),
-  description: text(),
+  description: varchar({ length: 160 }).notNull(),
   duration: integer().notNull(),
   viewCount: integer().default(0).notNull(),
   isPublished: boolean().default(true).notNull(),
