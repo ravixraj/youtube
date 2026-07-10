@@ -15,6 +15,7 @@ import {
   verifyAccessToken,
   verifyRefreshToken,
 } from '@/lib/helper'
+import { getCookie } from 'hono/cookie'
 import { zValidator } from '@/lib/zValidator'
 import { authMiddleware } from '@/middlewares/auth'
 
@@ -139,6 +140,26 @@ user.post('/register', zValidator('json', registerSchema), async c => {
     )
   }
 
+  const tokens = await generateAccessAndRefreshTokens(
+    { userId: newUser.id },
+    {
+      accessSecret: c.env.ACCESS_TOKEN_SECRET,
+      accessExpiry: c.env.ACCESS_TOKEN_EXPIRY,
+      refreshSecret: c.env.REFRESH_TOKEN_SECRET,
+      refreshExpiry: c.env.REFRESH_TOKEN_EXPIRY,
+    }
+  )
+
+  await db
+    .update(users)
+    .set({
+      refreshToken: tokens.refreshToken,
+      updatedAt: new Date().toISOString(),
+    })
+    .where(eq(users.id, newUser.id))
+
+  setAuthCookies(c, tokens.accessToken, tokens.refreshToken)
+
   return c.json(
     HTTP.Response(HttpPhrase.CREATED, { user: newUser }),
     HttpStatus.CREATED
@@ -188,13 +209,26 @@ user.post('/login', zValidator('json', loginSchema), async c => {
   const { password: _, refreshToken: __, ...safeUser } = userRecord
 
   return c.json(
-    HTTP.Response(HttpPhrase.OK, { user: safeUser, tokens }),
+    HTTP.Response(HttpPhrase.OK, { user: safeUser }),
     HttpStatus.OK
   )
 })
 
-user.post('/refresh-token', zValidator('json', refreshTokenSchema), async c => {
-  const { refreshToken } = c.req.valid('json')
+user.post('/refresh-token', async c => {
+  let refreshToken: string | undefined
+
+  try {
+    const body = await c.req.json()
+    refreshToken = body.refreshToken
+  } catch {}
+
+  if (!refreshToken) {
+    refreshToken = getCookie(c, 'refresh_token')
+  }
+
+  if (!refreshToken) {
+    throw HTTP.Error(HttpStatus.UNAUTHORIZED, 'Refresh token required')
+  }
 
   const userPayload = await verifyRefreshToken(
     refreshToken,
@@ -242,7 +276,7 @@ user.post('/refresh-token', zValidator('json', refreshTokenSchema), async c => {
 
   setAuthCookies(c, tokens.accessToken, tokens.refreshToken)
 
-  return c.json(HTTP.Response(HttpPhrase.OK, { tokens }), HttpStatus.OK)
+  return c.json(HTTP.Response(HttpPhrase.OK, null), HttpStatus.OK)
 })
 
 user.use('/logout', authMiddleware)

@@ -1,5 +1,6 @@
 import { env } from 'hono/adapter'
 import { createMiddleware } from 'hono/factory'
+import { getCookie } from 'hono/cookie'
 import { verifyAccessToken } from '@/lib/helper'
 import { HTTP, HttpStatus } from '@/lib/http'
 
@@ -11,16 +12,23 @@ type AuthEnv = {
 }
 
 export const authMiddleware = createMiddleware<AuthEnv>(async (c, next) => {
+  let token: string | undefined
+
   const authHeader = c.req.header('authorization')
 
-  if (!authHeader) {
-    throw HTTP.Error(HttpStatus.UNAUTHORIZED, 'Please login first')
+  if (authHeader) {
+    const [type, value] = authHeader.split(' ')
+    if (type?.toLowerCase() === 'bearer' && value) {
+      token = value
+    }
   }
 
-  const [type, token] = authHeader.split(' ')
+  if (!token) {
+    token = getCookie(c, 'access_token')
+  }
 
-  if (type?.toLowerCase() !== 'bearer' || !token) {
-    throw HTTP.Error(HttpStatus.UNAUTHORIZED, 'Invalid token format')
+  if (!token) {
+    throw HTTP.Error(HttpStatus.UNAUTHORIZED, 'Please login first')
   }
 
   const { ACCESS_TOKEN_SECRET } = env<CloudflareBindings>(c)
