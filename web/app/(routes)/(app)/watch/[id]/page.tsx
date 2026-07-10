@@ -49,8 +49,8 @@ export default function WatchPage() {
   const fetchVideo = async () => {
     try {
       const response = await videoAPI.getById(videoId);
-      if (response.success && response.data) {
-        const videoData = response.data;
+      if (response.data.success && response.data.data) {
+        const videoData = response.data.data;
         setVideo(videoData);
         setViewCount(videoData.viewCount);
       }
@@ -64,9 +64,9 @@ export default function WatchPage() {
   const fetchComments = async () => {
     try {
       const response = await commentAPI.getByVideo(videoId);
-      if (response.success && response.data) {
-        setComments(response.data);
-        setCommentCount(response.data.length);
+      if (response.data.success && response.data.data) {
+        setComments(response.data.data);
+        setCommentCount(response.data.data.length);
       }
     } catch (error) {
       console.error("Error fetching comments:", error);
@@ -83,7 +83,7 @@ export default function WatchPage() {
         content: newComment,
       });
 
-      if (response.success) {
+      if (response.data.success) {
         setNewComment("");
         fetchComments();
       }
@@ -99,7 +99,7 @@ export default function WatchPage() {
         setLikeCount((prev) => Math.max(0, prev - 1));
       } else {
         const response = await likeAPI.toggleVideo(videoId);
-        if (response.success) {
+        if (response.data.success) {
           setIsLiked(true);
           setLikeCount((prev) => prev + 1);
         }
@@ -115,7 +115,7 @@ export default function WatchPage() {
         setIsSubscribed(false);
       } else if (video?.userId) {
         const response = await subscriptionAPI.toggle(video.userId);
-        if (response.success) {
+        if (response.data.success) {
           setIsSubscribed(true);
         }
       }

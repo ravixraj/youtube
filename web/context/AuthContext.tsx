@@ -6,6 +6,7 @@ import {
   useState,
   useEffect,
   ReactNode,
+  useCallback,
 } from "react";
 import { User } from "../lib/api";
 import { authAPI, userAPI } from "../lib/api";
@@ -27,33 +28,44 @@ interface AuthContextType {
   refreshToken: () => Promise<boolean>;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const AuthContext = createContext<AuthContextType | null>(null);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  const logout = useCallback(async () => {
+    try {
+      await authAPI.logout();
+    } catch {
+      // ignore
+    }
+    setUser(null);
+  }, []);
+
+  const refreshToken = useCallback(async () => {
+    try {
+      const response = await authAPI.refreshToken();
+      if (response.data.success) {
+        return true;
+      }
+      await logout();
+      return false;
+    } catch {
+      await logout();
+      return false;
+    }
+  }, [logout]);
+
   useEffect(() => {
     const initAuth = async () => {
-      const accessToken = localStorage.getItem("accessToken");
-
-      if (accessToken) {
-        try {
-          const response = await userAPI.getCurrentUser();
-
-          if (response.success && response.data?.user) {
-            setUser(response.data.user);
-          } else if (!response.success) {
-            const refreshed = await refreshToken();
-            if (!refreshed) {
-              localStorage.removeItem("accessToken");
-              localStorage.removeItem("refreshToken");
-            }
-          }
-        } catch {
-          localStorage.removeItem("accessToken");
-          localStorage.removeItem("refreshToken");
+      try {
+        const response = await userAPI.getCurrentUser();
+        if (response.data.success && response.data.data?.user) {
+          setUser(response.data.data.user);
         }
+      } catch {
+        // not authenticated
       }
       setIsLoading(false);
     };
@@ -65,14 +77,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       const response = await authAPI.login(credentials);
 
-      if (response.success && response.data) {
-        localStorage.setItem("accessToken", response.data.tokens.accessToken);
-        localStorage.setItem("refreshToken", response.data.tokens.refreshToken);
-        setUser(response.data.user);
-        return { success: true, message: response.message };
+      if (response.data.success && response.data.data) {
+        setUser(response.data.data.user);
+        return { success: true, message: response.data.message };
       }
 
-      return { success: false, message: response.message || "Login failed" };
+      return {
+        success: false,
+        message: response.data.message || "Login failed",
+      };
     } catch {
       return { success: false, message: "Login failed" };
     }
@@ -87,50 +100,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       const response = await authAPI.register(data);
 
-      if (response.success && response.data?.user) {
-        setUser(response.data.user);
-        return { success: true, message: response.message };
+      if (response.data.success && response.data.data?.user) {
+        setUser(response.data.data.user);
+        return { success: true, message: response.data.message };
       }
 
       return {
         success: false,
-        message: response.message || "Registration failed",
+        message: response.data.message || "Registration failed",
       };
     } catch {
       return { success: false, message: "Registration failed" };
-    }
-  };
-
-  const logout = async () => {
-    try {
-      await authAPI.logout();
-    } catch {
-      // ignore
-    }
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("refreshToken");
-    setUser(null);
-  };
-
-  const refreshToken = async () => {
-    const storedRefreshToken = localStorage.getItem("refreshToken");
-    if (!storedRefreshToken) {
-      return false;
-    }
-
-    try {
-      const response = await authAPI.refreshToken(storedRefreshToken);
-      if (response.success && response.data) {
-        localStorage.setItem("accessToken", response.data.tokens.accessToken);
-        localStorage.setItem("refreshToken", response.data.tokens.refreshToken);
-        return true;
-      } else {
-        logout();
-        return false;
-      }
-    } catch {
-      logout();
-      return false;
     }
   };
 
@@ -152,7 +132,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;

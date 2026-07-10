@@ -52,8 +52,8 @@ export default function ProfilePage() {
   const fetchProfile = async () => {
     try {
       const response = await userAPI.getChannel(username);
-      if (response.success && response.data?.user) {
-        const ch = response.data.user;
+      if (response.data.success && response.data.data?.user) {
+        const ch = response.data.data.user;
         setChannel(ch);
         setIsSubscribed(ch.isSubscribed);
       }
@@ -65,8 +65,8 @@ export default function ProfilePage() {
   const fetchVideos = async () => {
     try {
       const response = await videoAPI.search({ userId: channel?.id });
-      if (response.success && response.data) {
-        setVideos(response.data);
+      if (response.data.success && response.data.data) {
+        setVideos(response.data.data.videos);
       }
     } catch (error) {
       console.error("Error fetching videos:", error);
@@ -76,8 +76,8 @@ export default function ProfilePage() {
   const fetchTweets = async () => {
     try {
       const response = await tweetAPI.getByUser(channel?.id || "");
-      if (response.success && response.data) {
-        setTweets(response.data);
+      if (response.data.success && response.data.data) {
+        setTweets(response.data.data);
       }
     } catch (error) {
       console.error("Error fetching tweets:", error);

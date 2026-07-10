@@ -44,8 +44,8 @@ export default function SearchPage() {
         sortBy: filters.sortBy,
         sortOrder: filters.sortOrder,
       });
-      if (response.success && response.data) {
-        setVideos(response.data);
+      if (response.data.success && response.data.data) {
+        setVideos(response.data.data.videos);
       }
     } catch (error) {
       console.error("Error searching:", error);

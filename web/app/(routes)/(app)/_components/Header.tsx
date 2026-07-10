@@ -3,7 +3,6 @@
 import {
   SearchIcon,
   Menu,
-  Bell,
   Upload,
   LogOut,
   Settings,
@@ -110,11 +109,6 @@ export default function Header({ onMenuToggle }: HeaderProps) {
                   <Upload className="h-5 w-5" />
                 </Button>
               </Link>
-
-              {/* Notifications */}
-              <Button variant="ghost" size="icon" className="hidden sm:flex">
-                <Bell className="h-5 w-5" />
-              </Button>
 
               {/* User Menu */}
               <DropdownMenu>

@@ -42,10 +42,10 @@ export default function UploadPage() {
 
       const response = await videoAPI.create(data);
 
-      if (response.success && response.data) {
-        router.push(`/watch/${response.data.id}`);
+      if (response.data.success && response.data.data) {
+        router.push(`/watch/${response.data.data.id}`);
       } else {
-        setError(response.message || "Upload failed");
+        setError(response.data.message || "Upload failed");
       }
     } catch {
       setError("Upload failed");

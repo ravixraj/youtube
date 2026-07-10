@@ -23,8 +23,8 @@ export default function TweetsPage() {
     try {
       if (user?.id) {
         const response = await tweetAPI.getByUser(user.id);
-        if (response.success && response.data) {
-          setTweets(response.data);
+        if (response.data.success && response.data.data) {
+          setTweets(response.data.data);
         }
       }
     } catch (error) {
@@ -41,7 +41,7 @@ export default function TweetsPage() {
     setPosting(true);
     try {
       const response = await tweetAPI.create({ content: newTweet });
-      if (response.success) {
+      if (response.data.success) {
         setNewTweet("");
         fetchTweets();
       }
@@ -54,18 +54,26 @@ export default function TweetsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading tweets...</p>
-        </div>
-      </div>
+      <section className="w-full p-4 max-w-2xl mx-auto space-y-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="bg-card rounded-xl p-4 animate-pulse">
+            <div className="flex gap-3">
+              <div className="h-10 w-10 rounded-full bg-muted shrink-0" />
+              <div className="flex-1 space-y-3">
+                <div className="h-4 bg-muted rounded w-1/4" />
+                <div className="h-4 bg-muted rounded w-3/4" />
+                <div className="h-4 bg-muted rounded w-1/2" />
+              </div>
+            </div>
+          </div>
+        ))}
+      </section>
     );
   }
 
   return (
-    <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-8">
-      <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6 mb-4 sm:mb-8">
+    <section className="w-full p-4 max-w-2xl mx-auto">
+      <div className="bg-card rounded-xl p-4 mb-4 border border-border">
         <div className="flex gap-4">
           <Avatar className="w-12 h-12">
             <AvatarImage src={user?.avatar} alt={user?.username} />
@@ -83,14 +91,10 @@ export default function TweetsPage() {
                 className="text-lg border-none focus-visible:ring-0 p-0"
               />
               <div className="flex items-center justify-between">
-                <div className="text-sm text-gray-500">
+                <div className="text-sm text-muted-foreground">
                   {200 - newTweet.length} characters remaining
                 </div>
-                <Button
-                  type="submit"
-                  disabled={!newTweet.trim() || posting}
-                  className="bg-blue-600 text-white hover:bg-blue-700"
-                >
+                <Button type="submit" disabled={!newTweet.trim() || posting}>
                   {posting ? "Posting..." : "Tweet"}
                 </Button>
               </div>
@@ -104,7 +108,7 @@ export default function TweetsPage() {
           tweets.map((tweet) => (
             <div
               key={tweet.id}
-              className="bg-white border border-gray-200 rounded-lg p-3 sm:p-4"
+              className="bg-card border border-border rounded-xl p-4"
             >
               <div className="flex items-start gap-3">
                 <Avatar className="w-10 h-10 mt-1">
@@ -118,23 +122,23 @@ export default function TweetsPage() {
                 </Avatar>
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
-                    <span className="font-semibold">
+                    <span className="font-semibold text-foreground">
                       {tweet.user?.fullname}
                     </span>
-                    <span className="text-gray-600">
+                    <span className="text-muted-foreground">
                       @{tweet.user?.username}
                     </span>
-                    <span className="text-gray-600">
+                    <span className="text-muted-foreground">
                       {new Date(tweet.createdAt).toLocaleDateString()}
                     </span>
                   </div>
-                  <p className="mt-2 text-gray-800">{tweet.content}</p>
-                  <div className="flex items-center gap-4 mt-3 text-gray-600">
-                    <button className="hover:text-blue-600">
+                  <p className="mt-2 text-foreground">{tweet.content}</p>
+                  <div className="flex items-center gap-4 mt-3 text-muted-foreground">
+                    <button className="hover:text-primary transition-colors">
                       <MessageSquare className="h-4 w-4 inline mr-1" />
                       Reply
                     </button>
-                    <button className="hover:text-red-600">
+                    <button className="hover:text-destructive transition-colors">
                       <Heart className="h-4 w-4 inline mr-1" />
                       Like
                     </button>
@@ -144,11 +148,19 @@ export default function TweetsPage() {
             </div>
           ))
         ) : (
-          <div className="text-center py-12 text-gray-600">
-            <p>No tweets found</p>
+          <div className="flex flex-col items-center justify-center min-h-[30vh] text-center">
+            <div className="w-16 h-16 mb-4 rounded-full bg-muted flex items-center justify-center">
+              <MessageSquare className="h-8 w-8 text-muted-foreground" />
+            </div>
+            <h2 className="text-lg font-semibold text-foreground mb-1">
+              No tweets yet
+            </h2>
+            <p className="text-muted-foreground">
+              Your tweets will appear here
+            </p>
           </div>
         )}
       </div>
-    </div>
+    </section>
   );
 }

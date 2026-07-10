@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import {
   Home,
   Heart,
-  History,
   Video,
   ListVideo,
   UserCheck,
@@ -24,14 +23,13 @@ interface SidebarProps {
 
 const navItems = [
   { name: "Home", path: "/home", icon: Home, mobileView: true },
-  { name: "Explore", path: "/explore", icon: History, mobileView: true },
   {
     name: "Subscriptions",
     path: "/subscriptions",
     icon: Heart,
     mobileView: true,
   },
-  { name: "Library", path: "/library", icon: ListVideo, mobileView: true },
+  { name: "Playlist", path: "/playlist", icon: ListVideo, mobileView: true },
   { name: "Tweets", path: "/tweets", icon: MessageSquare, mobileView: false },
   { name: "Upload", path: "/upload", icon: Upload, mobileView: false },
   { name: "My Content", path: "/my-content", icon: Video, mobileView: false },

@@ -1,5 +1,10 @@
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/v1";
+import axios from "axios";
+
+const apiClient = axios.create({
+  baseURL: process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8787/api/v1",
+  withCredentials: true,
+  timeout: 120000,
+});
 
 // ─── Types (derived from server schema) ───────────────────────────────
 
@@ -94,344 +99,265 @@ export interface ApiResponse<T = unknown> {
   data: T | null;
 }
 
-export interface AuthTokens {
-  accessToken: string;
-  refreshToken: string;
-}
-
-// ─── Helpers ──────────────────────────────────────────────────────────
-
-const fetchWithAuth = async (
-  url: string,
-  options: RequestInit = {},
-): Promise<Response> => {
-  const token = localStorage.getItem("accessToken");
-  const headers = new Headers(options.headers || {});
-
-  if (token) {
-    headers.set("Authorization", `Bearer ${token}`);
-  }
-
-  const response = await fetch(url, { ...options, headers });
-
-  if (response.status === 401) {
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("refreshToken");
-    window.location.href = "/signin";
-    throw new Error("Unauthorized");
-  }
-
-  return response;
-};
-
 // ─── Auth API ─────────────────────────────────────────────────────────
 
+const loginApi = (data: { username: string; password: string }) =>
+  apiClient.post<ApiResponse<{ user: User }>>("/users/login", data);
+
+const registerApi = (data: {
+  username: string;
+  fullname: string;
+  email: string;
+  password: string;
+}) => apiClient.post<ApiResponse<{ user: User }>>("/users/register", data);
+
+const refreshTokenApi = () =>
+  apiClient.post<ApiResponse<null>>("/users/refresh-token");
+
+const logoutApi = () => apiClient.post<ApiResponse<null>>("/users/logout");
+
+const changePasswordApi = (data: {
+  currentPassword: string;
+  newPassword: string;
+}) => apiClient.post<ApiResponse<null>>("/users/change-password", data);
+
 export const authAPI = {
-  login: (data: { username: string; password: string }) =>
-    fetch(`${API_BASE_URL}/users/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    }).then(
-      (r) =>
-        r.json() as Promise<ApiResponse<{ user: User; tokens: AuthTokens }>>,
-    ),
-
-  register: (data: {
-    username: string;
-    fullname: string;
-    email: string;
-    password: string;
-  }) =>
-    fetch(`${API_BASE_URL}/users/register`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    }).then((r) => r.json() as Promise<ApiResponse<{ user: User }>>),
-
-  refreshToken: (refreshToken: string) =>
-    fetch(`${API_BASE_URL}/users/refresh-token`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refreshToken }),
-    }).then((r) => r.json() as Promise<ApiResponse<{ tokens: AuthTokens }>>),
-
-  logout: () =>
-    fetchWithAuth(`${API_BASE_URL}/users/logout`, { method: "POST" }).then(
-      (r) => r.json() as Promise<ApiResponse<null>>,
-    ),
-
-  changePassword: (data: { currentPassword: string; newPassword: string }) =>
-    fetchWithAuth(`${API_BASE_URL}/users/change-password`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    }).then((r) => r.json() as Promise<ApiResponse<null>>),
+  login: loginApi,
+  register: registerApi,
+  refreshToken: refreshTokenApi,
+  logout: logoutApi,
+  changePassword: changePasswordApi,
 };
 
 // ─── User API ─────────────────────────────────────────────────────────
 
+const getCurrentUserApi = () =>
+  apiClient.get<ApiResponse<{ user: User }>>("/users/current-user");
+
+const getChannelApi = (username: string) =>
+  apiClient.get<ApiResponse<{ user: ChannelUser }>>(`/users/c/${username}`);
+
+const updateAccountApi = (data: {
+  fullname?: string;
+  email?: string;
+  username?: string;
+}) =>
+  apiClient.patch<ApiResponse<{ user: User }>>("/users/update-account", data);
+
+const uploadAvatarApi = (file: File) => {
+  const formData = new FormData();
+  formData.append("avatar", file);
+  return apiClient.patch<ApiResponse<{ user: User }>>(
+    "/users/avatar",
+    formData,
+  );
+};
+
+const uploadCoverImageApi = (file: File) => {
+  const formData = new FormData();
+  formData.append("coverImage", file);
+  return apiClient.patch<ApiResponse<{ user: User }>>(
+    "/users/cover-image",
+    formData,
+  );
+};
+
+const getHistoryApi = () =>
+  apiClient.get<ApiResponse<{ history: unknown[] }>>("/users/history");
+
 export const userAPI = {
-  getCurrentUser: () =>
-    fetchWithAuth(`${API_BASE_URL}/users/current-user`).then(
-      (r) => r.json() as Promise<ApiResponse<{ user: User }>>,
-    ),
-
-  getChannel: (username: string) =>
-    fetch(`${API_BASE_URL}/users/c/${username}`).then(
-      (r) => r.json() as Promise<ApiResponse<{ user: ChannelUser }>>,
-    ),
-
-  updateAccount: (data: {
-    fullname?: string;
-    email?: string;
-    username?: string;
-  }) =>
-    fetchWithAuth(`${API_BASE_URL}/users/update-account`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    }).then((r) => r.json() as Promise<ApiResponse<{ user: User }>>),
-
-  uploadAvatar: (file: File) => {
-    const formData = new FormData();
-    formData.append("avatar", file);
-    return fetchWithAuth(`${API_BASE_URL}/users/avatar`, {
-      method: "PATCH",
-      body: formData,
-    }).then((r) => r.json() as Promise<ApiResponse<{ user: User }>>);
-  },
-
-  uploadCoverImage: (file: File) => {
-    const formData = new FormData();
-    formData.append("coverImage", file);
-    return fetchWithAuth(`${API_BASE_URL}/users/cover-image`, {
-      method: "PATCH",
-      body: formData,
-    }).then((r) => r.json() as Promise<ApiResponse<{ user: User }>>);
-  },
-
-  getHistory: () =>
-    fetchWithAuth(`${API_BASE_URL}/users/history`).then(
-      (r) => r.json() as Promise<ApiResponse<{ history: unknown[] }>>,
-    ),
+  getCurrentUser: getCurrentUserApi,
+  getChannel: getChannelApi,
+  updateAccount: updateAccountApi,
+  uploadAvatar: uploadAvatarApi,
+  uploadCoverImage: uploadCoverImageApi,
+  getHistory: getHistoryApi,
 };
 
 // ─── Video API ────────────────────────────────────────────────────────
 
+const searchVideosApi = (params?: {
+  page?: number;
+  limit?: number;
+  query?: string;
+  sortBy?: string;
+  sortOrder?: string;
+  userId?: string;
+}) => apiClient.get<ApiResponse<{ videos: Video[] }>>("/videos", { params });
+
+const getVideoByIdApi = (videoId: string) =>
+  apiClient.get<ApiResponse<Video>>(`/videos/${videoId}`);
+
+const createVideoApi = (data: FormData) =>
+  apiClient.post<ApiResponse<Video>>("/videos", data);
+
+const updateVideoApi = (
+  videoId: string,
+  data: { title?: string; description?: string },
+) => apiClient.patch<ApiResponse<Video>>(`/videos/${videoId}`, data);
+
+const deleteVideoApi = (videoId: string) =>
+  apiClient.delete<ApiResponse<null>>(`/videos/${videoId}`);
+
+const togglePublishApi = (videoId: string) =>
+  apiClient.patch<ApiResponse<Video>>(`/videos/toggle/publish/${videoId}`);
+
 export const videoAPI = {
-  search: (params?: {
-    page?: number;
-    limit?: number;
-    query?: string;
-    sortBy?: string;
-    sortOrder?: string;
-    userId?: string;
-  }) => {
-    const searchParams = new URLSearchParams();
-    if (params) {
-      Object.entries(params).forEach(([key, value]) => {
-        if (value !== undefined && value !== null) {
-          searchParams.append(key, String(value));
-        }
-      });
-    }
-    const qs = searchParams.toString();
-    return fetchWithAuth(`${API_BASE_URL}/videos${qs ? `?${qs}` : ""}`).then(
-      (r) => r.json() as Promise<ApiResponse<Video[]>>,
-    );
-  },
-
-  getById: (videoId: string) =>
-    fetchWithAuth(`${API_BASE_URL}/videos/${videoId}`).then(
-      (r) => r.json() as Promise<ApiResponse<Video>>,
-    ),
-
-  create: (data: FormData) =>
-    fetchWithAuth(`${API_BASE_URL}/videos`, {
-      method: "POST",
-      body: data,
-    }).then((r) => r.json() as Promise<ApiResponse<Video>>),
-
-  update: (videoId: string, data: { title?: string; description?: string }) =>
-    fetchWithAuth(`${API_BASE_URL}/videos/${videoId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    }).then((r) => r.json() as Promise<ApiResponse<Video>>),
-
-  delete: (videoId: string) =>
-    fetchWithAuth(`${API_BASE_URL}/videos/${videoId}`, {
-      method: "DELETE",
-    }).then((r) => r.json() as Promise<ApiResponse<null>>),
-
-  togglePublish: (videoId: string) =>
-    fetchWithAuth(`${API_BASE_URL}/videos/toggle/publish/${videoId}`, {
-      method: "PATCH",
-    }).then((r) => r.json() as Promise<ApiResponse<Video>>),
+  search: searchVideosApi,
+  getById: getVideoByIdApi,
+  create: createVideoApi,
+  update: updateVideoApi,
+  delete: deleteVideoApi,
+  togglePublish: togglePublishApi,
 };
 
 // ─── Comment API ──────────────────────────────────────────────────────
 
+const getCommentsByVideoApi = (videoId: string) =>
+  apiClient.get<ApiResponse<Comment[]>>(`/comments/${videoId}`);
+
+const createCommentApi = (data: {
+  videoId: string;
+  content: string;
+  tweetId?: string;
+}) => apiClient.post<ApiResponse<Comment>>("/comments", data);
+
+const updateCommentApi = (commentId: string, data: { content: string }) =>
+  apiClient.patch<ApiResponse<Comment>>(`/comments/${commentId}`, data);
+
+const deleteCommentApi = (commentId: string) =>
+  apiClient.delete<ApiResponse<null>>(`/comments/${commentId}`);
+
 export const commentAPI = {
-  getByVideo: (videoId: string) =>
-    fetch(`${API_BASE_URL}/comments/${videoId}`).then(
-      (r) => r.json() as Promise<ApiResponse<Comment[]>>,
-    ),
-
-  create: (data: { videoId: string; content: string; tweetId?: string }) =>
-    fetchWithAuth(`${API_BASE_URL}/comments`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    }).then((r) => r.json() as Promise<ApiResponse<Comment>>),
-
-  update: (commentId: string, data: { content: string }) =>
-    fetchWithAuth(`${API_BASE_URL}/comments/${commentId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    }).then((r) => r.json() as Promise<ApiResponse<Comment>>),
-
-  delete: (commentId: string) =>
-    fetchWithAuth(`${API_BASE_URL}/comments/${commentId}`, {
-      method: "DELETE",
-    }).then((r) => r.json() as Promise<ApiResponse<null>>),
+  getByVideo: getCommentsByVideoApi,
+  create: createCommentApi,
+  update: updateCommentApi,
+  delete: deleteCommentApi,
 };
 
 // ─── Playlist API ─────────────────────────────────────────────────────
 
+const createPlaylistApi = (data: { name: string; description?: string }) =>
+  apiClient.post<ApiResponse<Playlist>>("/playlists", data);
+
+const updatePlaylistApi = (
+  playlistId: string,
+  data: { name?: string; description?: string },
+) => apiClient.patch<ApiResponse<Playlist>>(`/playlists/${playlistId}`, data);
+
+const deletePlaylistApi = (playlistId: string) =>
+  apiClient.delete<ApiResponse<null>>(`/playlists/${playlistId}`);
+
+const getPlaylistByIdApi = (playlistId: string) =>
+  apiClient.get<ApiResponse<Playlist>>(`/playlists/${playlistId}`);
+
+const getPlaylistsByUserApi = (userId: string) =>
+  apiClient.get<ApiResponse<Playlist[]>>(`/playlists/user/${userId}`);
+
+const addVideoToPlaylistApi = (playlistId: string, videoId: string) =>
+  apiClient.patch<ApiResponse<Playlist>>(
+    `/playlists/add/${videoId}/${playlistId}`,
+  );
+
+const removeVideoFromPlaylistApi = (playlistId: string, videoId: string) =>
+  apiClient.patch<ApiResponse<Playlist>>(
+    `/playlists/remove/${videoId}/${playlistId}`,
+  );
+
 export const playlistAPI = {
-  create: (data: { name: string; description?: string }) =>
-    fetchWithAuth(`${API_BASE_URL}/playlists`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    }).then((r) => r.json() as Promise<ApiResponse<Playlist>>),
-
-  update: (playlistId: string, data: { name?: string; description?: string }) =>
-    fetchWithAuth(`${API_BASE_URL}/playlists/${playlistId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    }).then((r) => r.json() as Promise<ApiResponse<Playlist>>),
-
-  delete: (playlistId: string) =>
-    fetchWithAuth(`${API_BASE_URL}/playlists/${playlistId}`, {
-      method: "DELETE",
-    }).then((r) => r.json() as Promise<ApiResponse<null>>),
-
-  getById: (playlistId: string) =>
-    fetchWithAuth(`${API_BASE_URL}/playlists/${playlistId}`).then(
-      (r) => r.json() as Promise<ApiResponse<Playlist>>,
-    ),
-
-  getByUser: (userId: string) =>
-    fetchWithAuth(`${API_BASE_URL}/playlists/user/${userId}`).then(
-      (r) => r.json() as Promise<ApiResponse<Playlist[]>>,
-    ),
-
-  addVideo: (playlistId: string, videoId: string) =>
-    fetchWithAuth(`${API_BASE_URL}/playlists/add/${videoId}/${playlistId}`, {
-      method: "PATCH",
-    }).then((r) => r.json() as Promise<ApiResponse<Playlist>>),
-
-  removeVideo: (playlistId: string, videoId: string) =>
-    fetchWithAuth(`${API_BASE_URL}/playlists/remove/${videoId}/${playlistId}`, {
-      method: "PATCH",
-    }).then((r) => r.json() as Promise<ApiResponse<Playlist>>),
+  create: createPlaylistApi,
+  update: updatePlaylistApi,
+  delete: deletePlaylistApi,
+  getById: getPlaylistByIdApi,
+  getByUser: getPlaylistsByUserApi,
+  addVideo: addVideoToPlaylistApi,
+  removeVideo: removeVideoFromPlaylistApi,
 };
 
 // ─── Tweet API ────────────────────────────────────────────────────────
 
+const createTweetApi = (data: { content: string }) =>
+  apiClient.post<ApiResponse<Tweet>>("/tweets", data);
+
+const updateTweetApi = (tweetId: string, data: { content: string }) =>
+  apiClient.patch<ApiResponse<Tweet>>(`/tweets/${tweetId}`, data);
+
+const deleteTweetApi = (tweetId: string) =>
+  apiClient.delete<ApiResponse<null>>(`/tweets/${tweetId}`);
+
+const getTweetsByUserApi = (userId: string) =>
+  apiClient.get<ApiResponse<Tweet[]>>(`/tweets/user/${userId}`);
+
 export const tweetAPI = {
-  create: (data: { content: string }) =>
-    fetchWithAuth(`${API_BASE_URL}/tweets`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    }).then((r) => r.json() as Promise<ApiResponse<Tweet>>),
-
-  update: (tweetId: string, data: { content: string }) =>
-    fetchWithAuth(`${API_BASE_URL}/tweets/${tweetId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    }).then((r) => r.json() as Promise<ApiResponse<Tweet>>),
-
-  delete: (tweetId: string) =>
-    fetchWithAuth(`${API_BASE_URL}/tweets/${tweetId}`, {
-      method: "DELETE",
-    }).then((r) => r.json() as Promise<ApiResponse<null>>),
-
-  getByUser: (userId: string) =>
-    fetch(`${API_BASE_URL}/tweets/user/${userId}`).then(
-      (r) => r.json() as Promise<ApiResponse<Tweet[]>>,
-    ),
+  create: createTweetApi,
+  update: updateTweetApi,
+  delete: deleteTweetApi,
+  getByUser: getTweetsByUserApi,
 };
 
 // ─── Like API ─────────────────────────────────────────────────────────
 
+const toggleVideoLikeApi = (videoId: string) =>
+  apiClient.post<ApiResponse<{ isLiked: boolean }>>(
+    `/likes/toggle/v/${videoId}`,
+  );
+
+const toggleCommentLikeApi = (commentId: string) =>
+  apiClient.post<ApiResponse<{ isLiked: boolean }>>(
+    `/likes/toggle/c/${commentId}`,
+  );
+
+const toggleTweetLikeApi = (tweetId: string) =>
+  apiClient.post<ApiResponse<{ isLiked: boolean }>>(
+    `/likes/toggle/t/${tweetId}`,
+  );
+
+const getLikedVideosApi = () =>
+  apiClient.get<ApiResponse<Video[]>>("/likes/videos");
+
 export const likeAPI = {
-  toggleVideo: (videoId: string) =>
-    fetchWithAuth(`${API_BASE_URL}/likes/toggle/v/${videoId}`, {
-      method: "POST",
-    }).then((r) => r.json() as Promise<ApiResponse<{ isLiked: boolean }>>),
-
-  toggleComment: (commentId: string) =>
-    fetchWithAuth(`${API_BASE_URL}/likes/toggle/c/${commentId}`, {
-      method: "POST",
-    }).then((r) => r.json() as Promise<ApiResponse<{ isLiked: boolean }>>),
-
-  toggleTweet: (tweetId: string) =>
-    fetchWithAuth(`${API_BASE_URL}/likes/toggle/t/${tweetId}`, {
-      method: "POST",
-    }).then((r) => r.json() as Promise<ApiResponse<{ isLiked: boolean }>>),
-
-  getLikedVideos: () =>
-    fetchWithAuth(`${API_BASE_URL}/likes/videos`).then(
-      (r) => r.json() as Promise<ApiResponse<Video[]>>,
-    ),
+  toggleVideo: toggleVideoLikeApi,
+  toggleComment: toggleCommentLikeApi,
+  toggleTweet: toggleTweetLikeApi,
+  getLikedVideos: getLikedVideosApi,
 };
 
 // ─── Subscription API ─────────────────────────────────────────────────
 
+const toggleSubscriptionApi = (channelId: string) =>
+  apiClient.post<ApiResponse<{ isSubscribed: boolean }>>(
+    `/subscriptions/c/${channelId}`,
+  );
+
+const getSubscribersApi = (channelId: string) =>
+  apiClient.get<ApiResponse<unknown[]>>(`/subscriptions/u/${channelId}`);
+
+const getSubscribedChannelsApi = () =>
+  apiClient.get<ApiResponse<unknown[]>>("/subscriptions/channels");
+
 export const subscriptionAPI = {
-  toggle: (channelId: string) =>
-    fetchWithAuth(`${API_BASE_URL}/subscriptions/c/${channelId}`, {
-      method: "POST",
-    }).then((r) => r.json() as Promise<ApiResponse<{ isSubscribed: boolean }>>),
-
-  getSubscribers: (channelId: string) =>
-    fetchWithAuth(`${API_BASE_URL}/subscriptions/u/${channelId}`).then(
-      (r) => r.json() as Promise<ApiResponse<unknown[]>>,
-    ),
-
-  getSubscribedChannels: () =>
-    fetchWithAuth(`${API_BASE_URL}/subscriptions/channels`).then(
-      (r) => r.json() as Promise<ApiResponse<unknown[]>>,
-    ),
+  toggle: toggleSubscriptionApi,
+  getSubscribers: getSubscribersApi,
+  getSubscribedChannels: getSubscribedChannelsApi,
 };
 
 // ─── Dashboard API ────────────────────────────────────────────────────
 
-export const dashboardAPI = {
-  getStats: () =>
-    fetchWithAuth(`${API_BASE_URL}/dashboard/stats`).then(
-      (r) =>
-        r.json() as Promise<
-          ApiResponse<{
-            channelStats: {
-              totalVideos: number;
-              totalViews: number;
-              subscriberCount: number;
-            };
-          }>
-        >,
-    ),
+const getDashboardStatsApi = () =>
+  apiClient.get<
+    ApiResponse<{
+      channelStats: {
+        totalVideos: number;
+        totalViews: number;
+        subscriberCount: number;
+      };
+    }>
+  >("/dashboard/stats");
 
-  getVideos: () =>
-    fetchWithAuth(`${API_BASE_URL}/dashboard/videos`).then(
-      (r) => r.json() as Promise<ApiResponse<{ videos: Video[] }>>,
-    ),
+const getDashboardVideosApi = () =>
+  apiClient.get<ApiResponse<{ videos: Video[] }>>("/dashboard/videos");
+
+export const dashboardAPI = {
+  getStats: getDashboardStatsApi,
+  getVideos: getDashboardVideosApi,
 };

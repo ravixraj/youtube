@@ -24,8 +24,8 @@ export default function HomePage() {
         sortOrder: "desc",
       });
 
-      if (response.success && response.data) {
-        setVideos(response.data);
+      if (response.data.success && response.data.data) {
+        setVideos(response.data.data?.videos || []);
       }
     } catch (error) {
       console.error("Error fetching videos:", error);
