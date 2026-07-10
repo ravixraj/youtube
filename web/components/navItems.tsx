@@ -7,7 +7,7 @@ import {
   ListVideo,
   Search,
   UserCheck,
-  Settings
+  Settings,
 } from "lucide-react";
 
 export const navItems = [

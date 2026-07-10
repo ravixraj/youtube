@@ -25,12 +25,22 @@ interface SidebarProps {
 const navItems = [
   { name: "Home", path: "/home", icon: Home, mobileView: true },
   { name: "Explore", path: "/explore", icon: History, mobileView: true },
-  { name: "Subscriptions", path: "/subscriptions", icon: Heart, mobileView: true },
+  {
+    name: "Subscriptions",
+    path: "/subscriptions",
+    icon: Heart,
+    mobileView: true,
+  },
   { name: "Library", path: "/library", icon: ListVideo, mobileView: true },
   { name: "Tweets", path: "/tweets", icon: MessageSquare, mobileView: false },
   { name: "Upload", path: "/upload", icon: Upload, mobileView: false },
   { name: "My Content", path: "/my-content", icon: Video, mobileView: false },
-  { name: "Subscribers", path: "/subscribers", icon: UserCheck, mobileView: false },
+  {
+    name: "Subscribers",
+    path: "/subscribers",
+    icon: UserCheck,
+    mobileView: false,
+  },
   { name: "Settings", path: "/settings", icon: Settings, mobileView: false },
 ];
 
@@ -61,7 +71,7 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
                   "justify-center",
                   pathname === item.path
                     ? "bg-primary/10 text-primary"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground",
                 )}
               >
                 <item.icon className="h-5 w-5 shrink-0" />
@@ -78,7 +88,7 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
       <aside
         className={cn(
           "fixed inset-y-0 left-0 z-50 w-[280px] border-r border-border py-4 bg-background transition-transform duration-300 sm:hidden",
-          isOpen ? "translate-x-0" : "-translate-x-full"
+          isOpen ? "translate-x-0" : "-translate-x-full",
         )}
       >
         {/* Close Button */}
@@ -108,7 +118,7 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
                   "flex items-center gap-4 px-4 py-3 rounded-lg text-sm font-medium transition-colors",
                   pathname === item.path
                     ? "bg-primary/10 text-primary"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground",
                 )}
               >
                 <item.icon className="h-5 w-5 shrink-0" />
@@ -127,7 +137,9 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-sm truncate">{user.fullname}</p>
-                <p className="text-xs text-muted-foreground truncate">@{user.username}</p>
+                <p className="text-xs text-muted-foreground truncate">
+                  @{user.username}
+                </p>
               </div>
             </div>
           </div>
@@ -147,12 +159,12 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
                   href={item.path}
                   className={cn(
                     "flex flex-col items-center justify-center flex-1 h-full transition-colors",
-                    isActive
-                      ? "text-primary"
-                      : "text-muted-foreground"
+                    isActive ? "text-primary" : "text-muted-foreground",
                   )}
                 >
-                  <item.icon className={cn("h-5 w-5", isActive && "scale-110")} />
+                  <item.icon
+                    className={cn("h-5 w-5", isActive && "scale-110")}
+                  />
                   <span className="text-xs mt-1 font-medium">{item.name}</span>
                 </Link>
               );

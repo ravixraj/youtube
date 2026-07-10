@@ -13,7 +13,14 @@ import {
   Repeat2,
   Share,
 } from "lucide-react";
-import { userAPI, videoAPI, tweetAPI, type ChannelUser, type Video, type Tweet } from "@/lib/api";
+import {
+  userAPI,
+  videoAPI,
+  tweetAPI,
+  type ChannelUser,
+  type Video,
+  type Tweet,
+} from "@/lib/api";
 import VideoCard from "@/components/VideoCard";
 import VideoCardSkeleton from "@/components/VideoCardSkeleton";
 

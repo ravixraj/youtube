@@ -3,7 +3,16 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Menu, Search, Video, Bell, Upload, User, LogOut, Settings } from "lucide-react";
+import {
+  Menu,
+  Search,
+  Video,
+  Bell,
+  Upload,
+  User,
+  LogOut,
+  Settings,
+} from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { ModeToggle } from "./ModeToggle";
 import { Button } from "./ui/button";
@@ -59,7 +68,10 @@ const Header = ({ onMenuClick }: HeaderProps) => {
         </div>
 
         {/* Center Section - Search */}
-        <form onSubmit={handleSearch} className="flex-1 max-w-2xl mx-4 hidden sm:block">
+        <form
+          onSubmit={handleSearch}
+          className="flex-1 max-w-2xl mx-4 hidden sm:block"
+        >
           <div className="relative">
             <input
               type="text"
@@ -105,7 +117,10 @@ const Header = ({ onMenuClick }: HeaderProps) => {
                 <DropdownMenuTrigger asChild>
                   <button className="flex items-center gap-2 p-1 rounded-full hover:bg-muted transition-colors">
                     <Avatar className="h-8 w-8">
-                      <AvatarImage src={user.avatar || ""} alt={user.username} />
+                      <AvatarImage
+                        src={user.avatar || ""}
+                        alt={user.username}
+                      />
                       <AvatarFallback className="bg-primary text-primary-foreground">
                         {user.username?.charAt(0).toUpperCase() || "U"}
                       </AvatarFallback>
@@ -114,12 +129,19 @@ const Header = ({ onMenuClick }: HeaderProps) => {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
                   <div className="px-2 py-1.5">
-                    <p className="font-medium text-foreground">{user.fullname}</p>
-                    <p className="text-sm text-muted-foreground">@{user.username}</p>
+                    <p className="font-medium text-foreground">
+                      {user.fullname}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      @{user.username}
+                    </p>
                   </div>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
-                    <Link href={`/@${user.username}`} className="cursor-pointer">
+                    <Link
+                      href={`/@${user.username}`}
+                      className="cursor-pointer"
+                    >
                       <User className="mr-2 h-4 w-4" />
                       Your Channel
                     </Link>
@@ -131,7 +153,10 @@ const Header = ({ onMenuClick }: HeaderProps) => {
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-destructive">
+                  <DropdownMenuItem
+                    onClick={handleLogout}
+                    className="cursor-pointer text-destructive"
+                  >
                     <LogOut className="mr-2 h-4 w-4" />
                     Sign Out
                   </DropdownMenuItem>

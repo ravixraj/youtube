@@ -11,7 +11,6 @@ import { useAuth } from "@/context/AuthContext";
 export default function SignUpPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [formData, setFormData] = useState({
     username: "",
     fullname: "",
@@ -27,14 +26,12 @@ export default function SignUpPage() {
     setLoading(true);
     setError(null);
 
-    const data = new FormData();
-    data.append("username", formData.username);
-    data.append("fullname", formData.fullname);
-    data.append("email", formData.email);
-    data.append("password", formData.password);
-    if (avatarFile) data.append("avatar", avatarFile);
-
-    const result = await register(data);
+    const result = await register({
+      username: formData.username,
+      fullname: formData.fullname,
+      email: formData.email,
+      password: formData.password,
+    });
 
     if (result.success) {
       router.push("/home");
@@ -115,17 +112,6 @@ export default function SignUpPage() {
               setFormData({ ...formData, password: e.target.value })
             }
             required
-          />
-        </div>
-
-        <div className="grid w-full max-w-sm items-center gap-3 mt-3">
-          <Label htmlFor="avatar">Avatar (Optional)</Label>
-          <Input
-            className="bg-input"
-            type="file"
-            id="avatar"
-            accept="image/*"
-            onChange={(e) => setAvatarFile(e.target.files?.[0] || null)}
           />
         </div>
 

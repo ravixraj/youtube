@@ -92,8 +92,9 @@ const Sidebar = ({ isOpen = true, onClose }: SidebarProps) => {
 
       {/* Sidebar */}
       <div
-        className={`w-64 bg-background border-r border-border h-screen fixed left-0 top-0 overflow-y-auto z-50 transition-transform duration-300 ease-in-out ${isOpen ? "translate-x-0" : "-translate-x-full"
-          } md:translate-x-0`}
+        className={`w-64 bg-background border-r border-border h-screen fixed left-0 top-0 overflow-y-auto z-50 transition-transform duration-300 ease-in-out ${
+          isOpen ? "translate-x-0" : "-translate-x-full"
+        } md:translate-x-0`}
       >
         {/* Logo */}
         <div className="p-4 border-b border-border flex items-center justify-between">
@@ -120,10 +121,11 @@ const Sidebar = ({ isOpen = true, onClose }: SidebarProps) => {
                 key={item.title}
                 href={item.href}
                 onClick={handleLinkClick}
-                className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${pathname === item.href
+                className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  pathname === item.href
                     ? "bg-primary/10 text-primary"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                  }`}
+                }`}
               >
                 <item.icon className="h-5 w-5" />
                 {item.title}
@@ -140,10 +142,11 @@ const Sidebar = ({ isOpen = true, onClose }: SidebarProps) => {
               <Link
                 href={`/@${user.username}`}
                 onClick={handleLinkClick}
-                className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${pathname.startsWith(`/@${user.username}`)
+                className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  pathname.startsWith(`/@${user.username}`)
                     ? "bg-primary/10 text-primary"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                  }`}
+                }`}
               >
                 <User className="h-5 w-5" />
                 Profile
@@ -151,10 +154,11 @@ const Sidebar = ({ isOpen = true, onClose }: SidebarProps) => {
               <Link
                 href="/settings"
                 onClick={handleLinkClick}
-                className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${pathname === "/settings"
+                className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  pathname === "/settings"
                     ? "bg-primary/10 text-primary"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                  }`}
+                }`}
               >
                 <Settings className="h-5 w-5" />
                 Settings

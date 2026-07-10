@@ -13,12 +13,16 @@ import { authAPI, userAPI } from "../lib/api";
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
-  login: (
-    credentials: { username: string; password: string },
-  ) => Promise<{ success: boolean; message: string }>;
-  register: (
-    data: FormData,
-  ) => Promise<{ success: boolean; message: string }>;
+  login: (credentials: {
+    username: string;
+    password: string;
+  }) => Promise<{ success: boolean; message: string }>;
+  register: (data: {
+    username: string;
+    fullname: string;
+    email: string;
+    password: string;
+  }) => Promise<{ success: boolean; message: string }>;
   logout: () => void;
   refreshToken: () => Promise<boolean>;
 }
@@ -63,10 +67,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       if (response.success && response.data) {
         localStorage.setItem("accessToken", response.data.tokens.accessToken);
-        localStorage.setItem(
-          "refreshToken",
-          response.data.tokens.refreshToken,
-        );
+        localStorage.setItem("refreshToken", response.data.tokens.refreshToken);
         setUser(response.data.user);
         return { success: true, message: response.message };
       }
@@ -77,7 +78,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const register = async (data: FormData) => {
+  const register = async (data: {
+    username: string;
+    fullname: string;
+    email: string;
+    password: string;
+  }) => {
     try {
       const response = await authAPI.register(data);
 
@@ -115,14 +121,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       const response = await authAPI.refreshToken(storedRefreshToken);
       if (response.success && response.data) {
-        localStorage.setItem(
-          "accessToken",
-          response.data.tokens.accessToken,
-        );
-        localStorage.setItem(
-          "refreshToken",
-          response.data.tokens.refreshToken,
-        );
+        localStorage.setItem("accessToken", response.data.tokens.accessToken);
+        localStorage.setItem("refreshToken", response.data.tokens.refreshToken);
         return true;
       } else {
         logout();

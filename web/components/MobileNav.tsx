@@ -39,9 +39,7 @@ const MobileNav = () => {
     },
   ];
 
-  const filteredItems = navItems.filter(
-    (item) => !item.requiresAuth || user
-  );
+  const filteredItems = navItems.filter((item) => !item.requiresAuth || user);
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 h-16 bg-background border-t border-border z-30 md:hidden">
@@ -52,12 +50,15 @@ const MobileNav = () => {
             <Link
               key={item.title}
               href={item.href}
-              className={`flex flex-col items-center justify-center flex-1 h-full transition-colors ${isActive
+              className={`flex flex-col items-center justify-center flex-1 h-full transition-colors ${
+                isActive
                   ? "text-primary"
                   : "text-muted-foreground hover:text-foreground"
-                }`}
+              }`}
             >
-              <item.icon className={`h-5 w-5 ${isActive ? "scale-110" : ""} transition-transform`} />
+              <item.icon
+                className={`h-5 w-5 ${isActive ? "scale-110" : ""} transition-transform`}
+              />
               <span className="text-xs mt-1 font-medium">{item.title}</span>
             </Link>
           );

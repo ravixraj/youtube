@@ -132,12 +132,21 @@ export const authAPI = {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
-    }).then((r) => r.json() as Promise<ApiResponse<{ user: User; tokens: AuthTokens }>>),
+    }).then(
+      (r) =>
+        r.json() as Promise<ApiResponse<{ user: User; tokens: AuthTokens }>>,
+    ),
 
-  register: (data: FormData) =>
+  register: (data: {
+    username: string;
+    fullname: string;
+    email: string;
+    password: string;
+  }) =>
     fetch(`${API_BASE_URL}/users/register`, {
       method: "POST",
-      body: data,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
     }).then((r) => r.json() as Promise<ApiResponse<{ user: User }>>),
 
   refreshToken: (refreshToken: string) =>
@@ -323,16 +332,14 @@ export const playlistAPI = {
     ),
 
   addVideo: (playlistId: string, videoId: string) =>
-    fetchWithAuth(
-      `${API_BASE_URL}/playlists/add/${videoId}/${playlistId}`,
-      { method: "PATCH" },
-    ).then((r) => r.json() as Promise<ApiResponse<Playlist>>),
+    fetchWithAuth(`${API_BASE_URL}/playlists/add/${videoId}/${playlistId}`, {
+      method: "PATCH",
+    }).then((r) => r.json() as Promise<ApiResponse<Playlist>>),
 
   removeVideo: (playlistId: string, videoId: string) =>
-    fetchWithAuth(
-      `${API_BASE_URL}/playlists/remove/${videoId}/${playlistId}`,
-      { method: "PATCH" },
-    ).then((r) => r.json() as Promise<ApiResponse<Playlist>>),
+    fetchWithAuth(`${API_BASE_URL}/playlists/remove/${videoId}/${playlistId}`, {
+      method: "PATCH",
+    }).then((r) => r.json() as Promise<ApiResponse<Playlist>>),
 };
 
 // ─── Tweet API ────────────────────────────────────────────────────────

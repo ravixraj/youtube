@@ -21,11 +21,13 @@ export default function MainLayout({
       <div className="flex">
         <Sidebar isOpen={sidebarOpen} onClose={closeSidebar} />
         <main className="flex-1 sm:ml-[70px] lg:ml-[250px] pt-[66px] pb-16 sm:pb-0 min-h-screen">
-          <Suspense fallback={
-            <div className="flex items-center justify-center h-[50vh]">
-              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
-            </div>
-          }>
+          <Suspense
+            fallback={
+              <div className="flex items-center justify-center h-[50vh]">
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
+              </div>
+            }
+          >
             {children}
           </Suspense>
         </main>

@@ -71,7 +71,10 @@ export default function Header({ onMenuToggle }: HeaderProps) {
         </Link>
 
         {/* Search Bar */}
-        <form onSubmit={handleSearch} className="flex-1 max-w-xl mx-auto hidden sm:block">
+        <form
+          onSubmit={handleSearch}
+          className="flex-1 max-w-xl mx-auto hidden sm:block"
+        >
           <div className="relative">
             <Input
               value={searchQuery}
@@ -118,7 +121,10 @@ export default function Header({ onMenuToggle }: HeaderProps) {
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" className="rounded-full">
                     <Avatar className="h-8 w-8">
-                      <AvatarImage src={user.avatar || ""} alt={user.username} />
+                      <AvatarImage
+                        src={user.avatar || ""}
+                        alt={user.username}
+                      />
                       <AvatarFallback className="bg-primary text-primary-foreground text-sm">
                         {user.username?.charAt(0).toUpperCase() || "U"}
                       </AvatarFallback>
@@ -128,7 +134,9 @@ export default function Header({ onMenuToggle }: HeaderProps) {
                 <DropdownMenuContent align="end" className="w-56">
                   <div className="px-2 py-1.5">
                     <p className="font-medium">{user.fullname}</p>
-                    <p className="text-sm text-muted-foreground">@{user.username}</p>
+                    <p className="text-sm text-muted-foreground">
+                      @{user.username}
+                    </p>
                   </div>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
@@ -144,7 +152,10 @@ export default function Header({ onMenuToggle }: HeaderProps) {
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive">
+                  <DropdownMenuItem
+                    onClick={handleLogout}
+                    className="text-destructive focus:text-destructive"
+                  >
                     <LogOut className="mr-2 h-4 w-4" />
                     Sign Out
                   </DropdownMenuItem>

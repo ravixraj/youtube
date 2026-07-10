@@ -345,9 +345,7 @@ export default function WatchPage() {
         </div>
 
         <div className="lg:col-span-1">
-          <h3 className="font-semibold text-foreground mb-4">
-            Related Videos
-          </h3>
+          <h3 className="font-semibold text-foreground mb-4">Related Videos</h3>
           <p className="text-muted-foreground text-sm">
             Related videos will appear here.
           </p>

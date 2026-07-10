@@ -34,7 +34,8 @@ export default function UploadPage() {
     try {
       const data = new FormData();
       data.append("title", formData.title);
-      if (formData.description) data.append("description", formData.description);
+      if (formData.description)
+        data.append("description", formData.description);
       data.append("isPublished", String(formData.isPublished));
       data.append("videoFile", videoFile);
       if (thumbnailFile) data.append("thumbnail", thumbnailFile);
