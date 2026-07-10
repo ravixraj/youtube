@@ -5,7 +5,6 @@ import {
   Upload,
   MessageCircle,
   ListVideo,
-  Search,
   UserCheck,
   Settings,
 } from "lucide-react";
@@ -16,12 +15,6 @@ export const navItems = [
     path: "/home",
     mobileView: true,
     icon: <Home className="h-5 w-5" />,
-  },
-  {
-    name: "Search",
-    path: "/search",
-    mobileView: true,
-    icon: <Search className="h-5 w-5" />,
   },
   {
     name: "Tweets",

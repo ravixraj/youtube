@@ -1,21 +1,22 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useCallback } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { videoAPI, type Video } from "@/lib/api";
 import VideoCard from "@/components/VideoCard";
 import VideoCardSkeleton from "@/components/VideoCardSkeleton";
 
 export default function HomePage() {
-  const [videos, setVideos] = useState<Video[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const searchParams = useSearchParams();
   const router = useRouter();
+  const queryParam = searchParams.get("q") || "";
+  const [videos, setVideos] = useState<Video[]>([]);
+  const [searchResults, setSearchResults] = useState<Video[]>([]);
+  const [isLoading, setIsLoading] = useState(!queryParam);
+  const [isSearching, setIsSearching] = useState(false);
 
-  useEffect(() => {
-    fetchVideos();
-  }, []);
-
-  const fetchVideos = async () => {
+  const fetchVideos = useCallback(async () => {
+    setIsLoading(true);
     try {
       const response = await videoAPI.search({
         page: 1,
@@ -23,7 +24,6 @@ export default function HomePage() {
         sortBy: "createdAt",
         sortOrder: "desc",
       });
-
       if (response.data.success && response.data.data) {
         setVideos(response.data.data?.videos || []);
       }
@@ -32,11 +32,71 @@ export default function HomePage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
+
+  const handleSearch = useCallback(async (query: string) => {
+    setIsSearching(true);
+    try {
+      const response = await videoAPI.search({
+        query,
+        page: 1,
+        limit: 50,
+        sortBy: "createdAt",
+        sortOrder: "desc",
+      });
+      if (response.data.success && response.data.data) {
+        setSearchResults(response.data.data.videos);
+      }
+    } catch (error) {
+      console.error("Error searching:", error);
+    } finally {
+      setIsSearching(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (queryParam) {
+      handleSearch(queryParam);
+    } else {
+      fetchVideos();
+    }
+  }, [queryParam, fetchVideos, handleSearch]);
 
   const handleVideoClick = (videoId: string) => {
     router.push(`/watch/${videoId}`);
   };
+
+  if (queryParam) {
+    return (
+      <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-8">
+        {isSearching ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {Array.from({ length: 12 }).map((_, index) => (
+              <VideoCardSkeleton key={index} />
+            ))}
+          </div>
+        ) : searchResults.length === 0 ? (
+          <div className="flex items-center justify-center min-h-[40vh]">
+            <p className="text-muted-foreground text-lg">
+              No videos found for &quot;{queryParam}&quot;
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {searchResults
+              .filter((video) => video.isPublished)
+              .map((video) => (
+                <VideoCard
+                  key={video.id}
+                  video={video}
+                  onClick={handleVideoClick}
+                />
+              ))}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
