@@ -51,8 +51,6 @@ const registerSchema = z.object({
     .max(15, { message: 'Fullname must be at most 15 characters long' }),
   email: z.email({ message: 'Invalid email address' }).nonempty(),
   password: strongPassword,
-  avatar: imageFile.optional(),
-  coverImage: imageFile.optional(),
 })
 
 const loginSchema = registerSchema.pick({ username: true, password: true })
@@ -84,9 +82,9 @@ const user = new Hono<{
   Variables: { user: string }
 }>().basePath('/users')
 
-user.post('/register', zValidator('form', registerSchema), async c => {
-  const { username, fullname, email, password, avatar, coverImage } =
-    c.req.valid('form')
+user.post('/register', zValidator('json', registerSchema), async c => {
+  const { username, fullname, email, password } =
+    c.req.valid('json')
 
   const db = database(c.env.DATABASE_URL)
 
@@ -108,23 +106,6 @@ user.post('/register', zValidator('form', registerSchema), async c => {
   const { CLOUDINARY_CLOUD_NAME, CLOUDINARY_UPLOAD_PRESET } =
     env<CloudflareBindings>(c)
 
-  const [avatarUpload, coverUpload] = await Promise.all([
-    avatar
-      ? uploadToCloudinary(
-          avatar,
-          CLOUDINARY_CLOUD_NAME,
-          CLOUDINARY_UPLOAD_PRESET
-        )
-      : null,
-    coverImage
-      ? uploadToCloudinary(
-          coverImage,
-          CLOUDINARY_CLOUD_NAME,
-          CLOUDINARY_UPLOAD_PRESET
-        )
-      : null,
-  ])
-
   let newUser
   try {
     ;[newUser] = await db
@@ -134,10 +115,6 @@ user.post('/register', zValidator('form', registerSchema), async c => {
         fullname,
         email,
         password: hashedPassword,
-        // @ts-ignore
-        avatar: avatarUpload?.url,
-        // @ts-ignore
-        coverImage: coverUpload?.url,
       })
       .returning({
         id: users.id,
