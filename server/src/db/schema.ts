@@ -5,6 +5,7 @@ import {
   pgTable,
   text,
   timestamp,
+  unique,
   uuid,
   varchar,
 } from 'drizzle-orm/pg-core'
@@ -54,24 +55,26 @@ export const tweets = pgTable('tweets', {
   ...timestamps,
 })
 
-export const subscriptions = pgTable('subscriptions', {
-  id: uuid().primaryKey().notNull(),
-  subscriberId: uuid()
-    .notNull()
-    .references(() => users.id, { onDelete: 'cascade' }),
-  channelId: uuid()
-    .notNull()
-    .references(() => users.id, { onDelete: 'cascade' }),
-  ...timestamps,
-})
+export const subscriptions = pgTable(
+  'subscriptions',
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    subscriberId: uuid()
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    channelId: uuid()
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    ...timestamps,
+  },
+  table => [unique().on(table.subscriberId, table.channelId)]
+)
 
 export const playlists = pgTable('playlists', {
   id: uuid().defaultRandom().primaryKey(),
-  name: varchar({ length: 30 }).notNull(),
-  description: varchar({ length: 160 }),
-  videoId: uuid()
-    .notNull()
-    .references(() => videos.id, { onDelete: 'cascade' }),
+  name: varchar({ length: 30 }).unique().notNull(),
+  description: varchar({ length: 100 }).notNull(),
+  videoId: uuid().references(() => videos.id, { onDelete: 'cascade' }),
   userId: uuid()
     .notNull()
     .references(() => users.id, { onDelete: 'cascade' }),
@@ -89,16 +92,24 @@ export const comments = pgTable('comments', {
   ...timestamps,
 })
 
-export const likes = pgTable('likes', {
-  id: uuid().defaultRandom().primaryKey(),
-  userId: uuid()
-    .notNull()
-    .references(() => users.id, { onDelete: 'cascade' }),
-  commentId: uuid().references(() => comments.id, { onDelete: 'cascade' }),
-  videoId: uuid().references(() => videos.id, { onDelete: 'cascade' }),
-  tweetId: uuid().references(() => tweets.id, { onDelete: 'cascade' }),
-  ...timestamps,
-})
+export const likes = pgTable(
+  'likes',
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    userId: uuid()
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    commentId: uuid().references(() => comments.id, { onDelete: 'cascade' }),
+    videoId: uuid().references(() => videos.id, { onDelete: 'cascade' }),
+    tweetId: uuid().references(() => tweets.id, { onDelete: 'cascade' }),
+    ...timestamps,
+  },
+  table => [
+    unique('unique_user_video_like').on(table.userId, table.videoId),
+    unique('unique_user_comment_like').on(table.userId, table.commentId),
+    unique('unique_user_tweet_like').on(table.userId, table.tweetId),
+  ]
+)
 
 type User = typeof users.$inferSelect
 type Video = typeof videos.$inferSelect
