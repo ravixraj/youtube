@@ -103,40 +103,27 @@ user.post('/register', zValidator('json', registerSchema), async c => {
 
   const hashedPassword = await hashPassword(password)
 
-  const { CLOUDINARY_CLOUD_NAME, CLOUDINARY_UPLOAD_PRESET } =
-    env<CloudflareBindings>(c)
+  const [newUser] = await db
+    .insert(users)
+    .values({
+      username,
+      fullname,
+      email,
+      password: hashedPassword,
+    })
+    .returning({
+      id: users.id,
+      username: users.username,
+      fullname: users.fullname,
+      email: users.email,
+      avatar: users.avatar,
+      coverImage: users.coverImage,
+      createdAt: users.createdAt,
+      updatedAt: users.updatedAt,
+    })
 
-  let newUser
-  try {
-    ;[newUser] = await db
-      .insert(users)
-      .values({
-        username,
-        fullname,
-        email,
-        password: hashedPassword,
-      })
-      .returning({
-        id: users.id,
-        username: users.username,
-        fullname: users.fullname,
-        email: users.email,
-        avatar: users.avatar,
-        coverImage: users.coverImage,
-        createdAt: users.createdAt,
-        updatedAt: users.updatedAt,
-      })
-  } catch (err: any) {
-    if (err?.code === '23505') {
-      throw HTTP.Error(
-        HttpStatus.CONFLICT,
-        'User with same email or username already exists'
-      )
-    }
-    throw HTTP.Error(
-      HttpStatus.INTERNAL_SERVER_ERROR,
-      'Error while creating user'
-    )
+  if (!newUser) {
+    throw HTTP.Error(HttpStatus.BAD_REQUEST, 'Failed to create user')
   }
 
   const tokens = await generateAccessAndRefreshTokens(
@@ -225,7 +212,7 @@ user.post('/refresh-token', async c => {
   try {
     const body = await c.req.json()
     refreshToken = body.refreshToken
-  } catch {}
+  } catch { }
 
   if (!refreshToken) {
     refreshToken = getCookie(c, 'refresh_token')
