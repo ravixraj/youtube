@@ -4,33 +4,20 @@ import { HTTP, HttpPhrase, HttpStatus } from '@/lib/http'
 import { zValidator } from '@/lib/zValidator'
 import { authMiddleware } from '@/middlewares/auth'
 import { db as database } from '@/db'
-import { comments } from '@/db/schema'
+import { comments, videos } from '@/db/schema'
 import { and, eq } from 'drizzle-orm'
 
 const videoIdParam = z.object({ videoId: z.uuid('Invalid video ID') })
 
-const tweetIdParam = z.object({ tweetId: z.uuid('Invalid tweet ID') })
-
 const commentIdParam = z.object({ commentId: z.uuid('Invalid comment ID') })
 
-const commentQuerySchema = z.object({
-  page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(50).default(10),
+const createCommentSchema = z.object({
+  content: z
+    .string()
+    .min(1, 'Comment content cannot be empty')
+    .max(50, 'Comment cannot exceed 50 characters'),
+  videoId: z.uuid('Invalid video ID format'),
 })
-
-const createCommentSchema = z
-  .object({
-    content: z
-      .string()
-      .min(1, 'Comment content cannot be empty')
-      .max(50, 'Comment cannot exceed 50 characters'),
-    videoId: z.uuid('Invalid video ID format').optional(),
-    tweetId: z.uuid('Invalid tweet ID format').optional(),
-  })
-  .refine(
-    data => !!data.tweetId !== !!data.videoId, // exactly one, not both, not neither
-    { message: 'Comment must be linked to exactly one of tweet or video' }
-  )
 
 const updateCommentSchema = z.object({
   content: z
@@ -44,62 +31,36 @@ const comment = new Hono<{
   Variables: { user: string }
 }>().basePath('/comments')
 
-async function fetchComments(
-  db: ReturnType<typeof database>,
-  filter: { videoId: string } | { tweetId: string },
-  page: number,
-  limit: number
-) {
-  return db.query.comments.findMany({
-    where: filter,
+comment.get('/video/:videoId', zValidator('param', videoIdParam), async c => {
+  const { videoId } = c.req.valid('param')
+
+  const db = database(c.env.DATABASE_URL)
+
+  const [video] = await db
+    .select({ id: videos.id })
+    .from(videos)
+    .where(eq(videos.id, videoId))
+    .limit(1)
+
+  if (!video) {
+    throw HTTP.Error(HttpStatus.NOT_FOUND, 'Video not found')
+  }
+
+  const videoComments = await db.query.comments.findMany({
+    where: { videoId },
     orderBy: (t, { desc: d }) => d(t.createdAt),
-    limit,
-    offset: (page - 1) * limit,
   })
-}
 
-comment.get(
-  '/video/:videoId',
-  zValidator('param', videoIdParam),
-  zValidator('query', commentQuerySchema),
-  async c => {
-    const { videoId } = c.req.valid('param')
-    const { page, limit } = c.req.valid('query')
-
-    const db = database(c.env.DATABASE_URL)
-
-    const videoComments = await fetchComments(db, { videoId }, page, limit)
-
-    return c.json(
-      HTTP.Response(HttpPhrase.OK, { comments: videoComments }),
-      HttpStatus.OK
-    )
-  }
-)
-
-comment.get(
-  '/tweet/:tweetId',
-  zValidator('param', tweetIdParam),
-  zValidator('query', commentQuerySchema),
-  async c => {
-    const { tweetId } = c.req.valid('param')
-    const { page, limit } = c.req.valid('query')
-
-    const db = database(c.env.DATABASE_URL)
-
-    const tweetComments = await fetchComments(db, { tweetId }, page, limit)
-
-    return c.json(
-      HTTP.Response(HttpPhrase.OK, { comments: tweetComments }),
-      HttpStatus.OK
-    )
-  }
-)
+  return c.json(
+    HTTP.Response(HttpPhrase.OK, { comments: videoComments }),
+    HttpStatus.OK
+  )
+})
 
 comment.use('/*', authMiddleware)
 comment.post('/', zValidator('json', createCommentSchema), async c => {
   const userId = c.get('user')
-  const { content, videoId, tweetId } = c.req.valid('json')
+  const { content, videoId } = c.req.valid('json')
 
   const db = database(c.env.DATABASE_URL)
 
@@ -111,14 +72,13 @@ comment.post('/', zValidator('json', createCommentSchema), async c => {
       .values({
         userId,
         content,
-        ...(videoId ? { videoId } : { tweetId }),
+        videoId,
       })
       .returning({
         id: comments.id,
         userId: comments.userId,
         content: comments.content,
         videoId: comments.videoId,
-        tweetId: comments.tweetId,
         createdAt: comments.createdAt,
         updatedAt: comments.updatedAt,
       })
@@ -126,7 +86,7 @@ comment.post('/', zValidator('json', createCommentSchema), async c => {
     if (err?.code === '23503') {
       throw HTTP.Error(
         HttpStatus.NOT_FOUND,
-        'The video or tweet you are commenting on does not exist'
+        'The video you are commenting on does not exist'
       )
     }
     throw err
@@ -165,7 +125,6 @@ comment.patch(
         userId: comments.userId,
         content: comments.content,
         videoId: comments.videoId,
-        tweetId: comments.tweetId,
         createdAt: comments.createdAt,
         updatedAt: comments.updatedAt,
       })
@@ -198,7 +157,6 @@ comment.delete('/:commentId', zValidator('param', commentIdParam), async c => {
       userId: comments.userId,
       content: comments.content,
       videoId: comments.videoId,
-      tweetId: comments.tweetId,
       createdAt: comments.createdAt,
       updatedAt: comments.updatedAt,
     })

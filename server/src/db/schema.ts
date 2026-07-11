@@ -87,8 +87,9 @@ export const comments = pgTable('comments', {
     .notNull()
     .references(() => users.id, { onDelete: 'cascade' }),
   content: text().notNull(),
-  tweetId: uuid().references(() => tweets.id, { onDelete: 'cascade' }),
-  videoId: uuid().references(() => videos.id, { onDelete: 'cascade' }),
+  videoId: uuid()
+    .notNull()
+    .references(() => videos.id, { onDelete: 'cascade' }),
   ...timestamps,
 })
 

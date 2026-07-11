@@ -35,7 +35,6 @@ export const relations = defineRelations(schema, r => ({
       from: r.tweets.userId,
       to: r.users.id,
     }),
-    comments: r.many.comments(),
     likes: r.many.likes(),
   },
 
@@ -71,10 +70,6 @@ export const relations = defineRelations(schema, r => ({
     video: r.one.videos({
       from: r.comments.videoId,
       to: r.videos.id,
-    }),
-    tweet: r.one.tweets({
-      from: r.comments.tweetId,
-      to: r.tweets.id,
     }),
     likes: r.many.likes(),
   },

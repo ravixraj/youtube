@@ -225,7 +225,7 @@ user.post('/refresh-token', async c => {
   try {
     const body = await c.req.json()
     refreshToken = body.refreshToken
-  } catch { }
+  } catch {}
 
   if (!refreshToken) {
     refreshToken = getCookie(c, 'refresh_token')
