@@ -46,15 +46,6 @@ const createVideoSchema = z.object({
 const updateVideoSchema = z.object({
   title: z.string().min(1, 'Title is required').max(60, 'Title too long'),
   description: z.string().max(160, 'Description too long'),
-  thumbnail: z
-    .instanceof(File)
-    .refine(file => file.size > 0, 'File required')
-    .refine(file => file.size <= MAX_IMAGE_BYTES, {
-      message: `Max size ${MAX_IMAGE_BYTES} bytes`,
-    })
-    .refine(file => !file.type || ACCEPTED_MIMES.includes(file.type), {
-      message: `Allowed types: ${ACCEPTED_MIMES.join(', ')}`,
-    }),
 })
 
 const video = new Hono<{
@@ -186,13 +177,7 @@ video.patch(
     const userId = c.get('user')
     const { videoId } = c.req.valid('param')
 
-    const { title, description, thumbnail } = c.req.valid('json')
-
-    const thumbnailUpload = await uploadToCloudinary(
-      thumbnail,
-      c.env.CLOUDINARY_CLOUD_NAME,
-      c.env.CLOUDINARY_UPLOAD_PRESET
-    )
+    const { title, description } = c.req.valid('json')
 
     const db = database(c.env.DATABASE_URL)
 
@@ -201,8 +186,6 @@ video.patch(
       .set({
         title,
         description,
-        // @ts-ignore
-        thumbnail: thumbnailUpload?.url,
         updatedAt: new Date().toISOString(),
       })
       .where(and(eq(videos.id, videoId), eq(videos.userId, userId)))

@@ -68,7 +68,7 @@ dashboard.get('/videos', async c => {
       updatedAt: true,
     },
     where: {
-      id: userId,
+      userId: userId,
     },
     orderBy: (t, { desc: d }) => d(t.createdAt),
   })
