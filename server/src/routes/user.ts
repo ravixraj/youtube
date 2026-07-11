@@ -84,8 +84,7 @@ const user = new Hono<{
 }>().basePath('/users')
 
 user.post('/register', zValidator('json', registerSchema), async c => {
-  const { username, fullname, email, password } =
-    c.req.valid('json')
+  const { username, fullname, email, password } = c.req.valid('json')
 
   const db = database(c.env.DATABASE_URL)
 
@@ -161,7 +160,10 @@ user.post('/register', zValidator('json', registerSchema), async c => {
   setAuthCookies(c, tokens.accessToken, tokens.refreshToken)
 
   return c.json(
-    HTTP.Response(HttpPhrase.CREATED, { user: newUser }),
+    HTTP.Response(HttpPhrase.CREATED, {
+      user: newUser,
+      accessToken: tokens.accessToken,
+    }),
     HttpStatus.CREATED
   )
 })
@@ -209,7 +211,10 @@ user.post('/login', zValidator('json', loginSchema), async c => {
   const { password: _, refreshToken: __, ...safeUser } = userRecord
 
   return c.json(
-    HTTP.Response(HttpPhrase.OK, { user: safeUser }),
+    HTTP.Response(HttpPhrase.OK, {
+      user: safeUser,
+      accessToken: tokens.accessToken,
+    }),
     HttpStatus.OK
   )
 })
@@ -220,7 +225,7 @@ user.post('/refresh-token', async c => {
   try {
     const body = await c.req.json()
     refreshToken = body.refreshToken
-  } catch {}
+  } catch { }
 
   if (!refreshToken) {
     refreshToken = getCookie(c, 'refresh_token')

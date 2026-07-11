@@ -39,6 +39,16 @@ tweet.get('/user/:userId', zValidator('param', userIdParam), async c => {
     where: {
       userId,
     },
+    with: {
+      user: {
+        columns: {
+          id: true,
+          username: true,
+          fullname: true,
+          avatar: true,
+        },
+      },
+    },
     orderBy: (t, { desc: d }) => d(t.createdAt),
     limit: 10,
   })
