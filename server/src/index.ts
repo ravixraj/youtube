@@ -24,7 +24,7 @@ app.use(secureHeaders())
 app.use('*', async (c, next) => {
   const { CLIENT_URL } = env(c)
   const corsHandler = cors({
-    origin: [CLIENT_URL, 'http://localhost:3000'],
+    origin: [CLIENT_URL, 'https://yt.raviraj.xyz'],
     allowHeaders: ['Content-Type', 'Authorization'],
     allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     exposeHeaders: ['Content-Length'],
