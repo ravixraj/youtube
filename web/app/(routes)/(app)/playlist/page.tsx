@@ -6,6 +6,7 @@ import { playlistAPI, type Playlist } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent } from "@/components/ui/card";
 import { ListVideo, Plus, Trash2, Play } from "lucide-react";
 import Link from "next/link";
 
@@ -101,10 +102,7 @@ export default function PlaylistsPage() {
       {playlists.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {playlists.map((playlist) => (
-            <div
-              key={playlist.id}
-              className="group bg-card rounded-xl overflow-hidden hover:shadow-lg dark:hover:shadow-primary/5 transition-all duration-300"
-            >
+            <Card key={playlist.id} className="group overflow-hidden">
               <Link href={`/playlist/${playlist.id}`}>
                 <div className="relative w-full pt-[56.25%]">
                   {playlist.videos && playlist.videos.length > 0 ? (
@@ -129,7 +127,7 @@ export default function PlaylistsPage() {
                 </div>
               </Link>
 
-              <div className="p-4">
+              <CardContent className="p-4">
                 <Link href={`/playlist/${playlist.id}`}>
                   <h3 className="font-semibold text-foreground line-clamp-1 hover:text-primary transition-colors">
                     {playlist.name}
@@ -153,8 +151,8 @@ export default function PlaylistsPage() {
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
           ))}
         </div>
       ) : (
@@ -177,60 +175,61 @@ export default function PlaylistsPage() {
 
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-card rounded-xl p-6 w-full max-w-md shadow-lg border border-border">
-            <h2 className="text-lg font-semibold text-foreground mb-4">
-              Create New Playlist
-            </h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <label
-                  htmlFor="name"
-                  className="text-sm font-medium text-foreground"
-                >
-                  Name
-                </label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) =>
-                    setFormData({ ...formData, name: e.target.value })
-                  }
-                  placeholder="Enter playlist name"
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <label
-                  htmlFor="description"
-                  className="text-sm font-medium text-foreground"
-                >
-                  Description{" "}
-                  <span className="text-muted-foreground">(optional)</span>
-                </label>
-                <Textarea
-                  id="description"
-                  value={formData.description}
-                  onChange={(e) =>
-                    setFormData({ ...formData, description: e.target.value })
-                  }
-                  placeholder="Enter playlist description"
-                  rows={3}
-                />
-              </div>
-              <div className="flex gap-3 pt-2">
-                <Button type="submit" disabled={creating} className="flex-1">
-                  {creating ? "Creating..." : "Create"}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setIsModalOpen(false)}
-                >
-                  Cancel
-                </Button>
-              </div>
-            </form>
-          </div>
+          <Card className="w-full max-w-md shadow-lg">
+            <CardContent className="pt-6">
+              <h2 className="text-lg font-semibold text-foreground mb-4">
+                Create New Playlist
+              </h2>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <label
+                    htmlFor="name"
+                    className="text-sm font-medium text-foreground"
+                  >
+                    Name
+                  </label>
+                  <Input
+                    id="name"
+                    value={formData.name}
+                    onChange={(e) =>
+                      setFormData({ ...formData, name: e.target.value })
+                    }
+                    placeholder="Enter playlist name"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label
+                    htmlFor="description"
+                    className="text-sm font-medium text-foreground"
+                  >
+                    Description
+                  </label>
+                  <Textarea
+                    id="description"
+                    value={formData.description}
+                    onChange={(e) =>
+                      setFormData({ ...formData, description: e.target.value })
+                    }
+                    placeholder="Enter playlist description"
+                    rows={3}
+                  />
+                </div>
+                <div className="flex gap-3 pt-2">
+                  <Button type="submit" disabled={creating} className="flex-1">
+                    {creating ? "Creating..." : "Create"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsModalOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
         </div>
       )}
     </section>

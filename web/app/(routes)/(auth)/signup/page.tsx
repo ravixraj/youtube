@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/context/AuthContext";
 
 export default function SignUpPage() {
@@ -43,92 +44,95 @@ export default function SignUpPage() {
   };
 
   return (
-    <>
-      <div className="mb-6 w-full text-center text-2xl font-semibold uppercase">
-        signup to youtube
-      </div>
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-center text-2xl font-semibold uppercase">
+          signup to UTube
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {error && (
+          <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded text-sm">
+            {error}
+          </div>
+        )}
 
-      {error && (
-        <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
-          {error}
-        </div>
-      )}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="email">Email</Label>
+            <Input
+              type="email"
+              id="email"
+              placeholder="Email"
+              value={formData.email}
+              onChange={(e) =>
+                setFormData({ ...formData, email: e.target.value })
+              }
+              required
+            />
+          </div>
 
-      <form onSubmit={handleSubmit} className="w-full">
-        <div className="grid w-full max-w-sm items-center gap-3 mt-3">
-          <Label htmlFor="email">Email</Label>
-          <Input
-            className="bg-input"
-            type="email"
-            id="email"
-            placeholder="Email"
-            value={formData.email}
-            onChange={(e) =>
-              setFormData({ ...formData, email: e.target.value })
-            }
-            required
-          />
-        </div>
+          <div className="space-y-2">
+            <Label htmlFor="username">UserName</Label>
+            <Input
+              type="text"
+              id="username"
+              placeholder="UserName"
+              value={formData.username}
+              onChange={(e) =>
+                setFormData({ ...formData, username: e.target.value })
+              }
+              required
+            />
+          </div>
 
-        <div className="grid w-full max-w-sm items-center gap-3 mt-3">
-          <Label htmlFor="username">UserName</Label>
-          <Input
-            className="bg-input"
-            type="text"
-            id="username"
-            placeholder="UserName"
-            value={formData.username}
-            onChange={(e) =>
-              setFormData({ ...formData, username: e.target.value })
-            }
-            required
-          />
-        </div>
+          <div className="space-y-2">
+            <Label htmlFor="fullname">FullName</Label>
+            <Input
+              type="text"
+              id="fullname"
+              placeholder="Fullname"
+              value={formData.fullname}
+              onChange={(e) =>
+                setFormData({ ...formData, fullname: e.target.value })
+              }
+              required
+            />
+          </div>
 
-        <div className="grid w-full max-w-sm items-center gap-3 mt-3">
-          <Label htmlFor="fullname">FullName</Label>
-          <Input
-            className="bg-input"
-            type="text"
-            id="fullname"
-            placeholder="Fullname"
-            value={formData.fullname}
-            onChange={(e) =>
-              setFormData({ ...formData, fullname: e.target.value })
-            }
-            required
-          />
-        </div>
+          <div className="space-y-2">
+            <Label htmlFor="password">Password</Label>
+            <Input
+              type="password"
+              id="password"
+              placeholder="Password"
+              value={formData.password}
+              onChange={(e) =>
+                setFormData({ ...formData, password: e.target.value })
+              }
+              required
+            />
+            <p className="text-xs text-muted-foreground">
+              Min 6 chars, must include uppercase, lowercase, number & special
+              character
+            </p>
+          </div>
 
-        <div className="grid w-full max-w-sm items-center gap-3 mt-3">
-          <Label htmlFor="password">Password</Label>
-          <Input
-            className="bg-input"
-            type="password"
-            id="password"
-            placeholder="Password"
-            value={formData.password}
-            onChange={(e) =>
-              setFormData({ ...formData, password: e.target.value })
-            }
-            required
-          />
-        </div>
+          <Button className="w-full" type="submit" disabled={loading}>
+            {loading ? "Signing Up..." : "Sign Up"}
+          </Button>
+        </form>
 
-        <Button className="mt-5 w-full" type="submit" disabled={loading}>
-          {loading ? "Signing Up..." : "Sign Up"}
-        </Button>
-      </form>
-
-      <p className="my-14 text-sm font-light">
-        Already registered?{" "}
-        <Link
-          className="cursor-pointer font-bold hover:underline"
-          href={"/signin"}
-        >
-          Sign in to your account
-        </Link>
-      </p>
-    </>
+        <p className="mt-6 text-sm font-light text-center">
+          Already registered?{" "}
+          <Link
+            className="cursor-pointer font-bold hover:underline"
+            href={"/signin"}
+          >
+            Sign in to your account
+          </Link>
+        </p>
+      </CardContent>
+    </Card>
   );
 }

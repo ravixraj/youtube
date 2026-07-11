@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { videoAPI } from "@/lib/api";
 
 export default function UploadPage() {
@@ -69,110 +70,101 @@ export default function UploadPage() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="grid gap-3">
-          <Label htmlFor="videoFile">Video File</Label>
-          <Input
-            id="videoFile"
-            type="file"
-            accept="video/*"
-            onChange={(e) => setVideoFile(e.target.files?.[0] || null)}
-            required
-          />
-          {videoFile && (
-            <p className="text-sm text-green-600">
-              Selected: {videoFile.name} (
-              {(videoFile.size / 1024 / 1024).toFixed(2)} MB)
-            </p>
-          )}
-        </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Video Details</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="grid gap-3">
+              <Label htmlFor="videoFile">Video File</Label>
+              <Input
+                id="videoFile"
+                type="file"
+                accept="video/*"
+                onChange={(e) => setVideoFile(e.target.files?.[0] || null)}
+                required
+              />
+              {videoFile && (
+                <p className="text-sm text-green-600">
+                  Selected: {videoFile.name} (
+                  {(videoFile.size / 1024 / 1024).toFixed(2)} MB)
+                </p>
+              )}
+            </div>
 
-        <div className="grid gap-3">
-          <Label htmlFor="thumbnailFile">Thumbnail *</Label>
-          <Input
-            id="thumbnailFile"
-            type="file"
-            accept="image/*"
-            onChange={(e) => setThumbnailFile(e.target.files?.[0] || null)}
-            required
-          />
-          {thumbnailFile && (
-            <p className="text-sm text-green-600">
-              Selected: {thumbnailFile.name} (
-              {(thumbnailFile.size / 1024 / 1024).toFixed(2)} MB)
-            </p>
-          )}
-        </div>
+            <div className="grid gap-3">
+              <Label htmlFor="thumbnailFile">Thumbnail *</Label>
+              <Input
+                id="thumbnailFile"
+                type="file"
+                accept="image/*"
+                onChange={(e) => setThumbnailFile(e.target.files?.[0] || null)}
+                required
+              />
+              {thumbnailFile && (
+                <p className="text-sm text-green-600">
+                  Selected: {thumbnailFile.name} (
+                  {(thumbnailFile.size / 1024 / 1024).toFixed(2)} MB)
+                </p>
+              )}
+            </div>
 
-        <div className="grid gap-3">
-          <Label htmlFor="title">Title *</Label>
-          <Input
-            id="title"
-            type="text"
-            value={formData.title}
-            onChange={(e) =>
-              setFormData({ ...formData, title: e.target.value })
-            }
-            placeholder="Enter video title"
-            required
-          />
-        </div>
+            <div className="grid gap-3">
+              <Label htmlFor="title">Title *</Label>
+              <Input
+                id="title"
+                type="text"
+                value={formData.title}
+                onChange={(e) =>
+                  setFormData({ ...formData, title: e.target.value })
+                }
+                placeholder="Enter video title"
+                required
+              />
+            </div>
 
-        <div className="grid gap-3">
-          <Label htmlFor="description">Description</Label>
-          <Textarea
-            id="description"
-            value={formData.description}
-            onChange={(e) =>
-              setFormData({ ...formData, description: e.target.value })
-            }
-            placeholder="Enter video description"
-            rows={4}
-          />
-        </div>
+            <div className="grid gap-3">
+              <Label htmlFor="description">Description</Label>
+              <Textarea
+                id="description"
+                value={formData.description}
+                onChange={(e) =>
+                  setFormData({ ...formData, description: e.target.value })
+                }
+                placeholder="Enter video description"
+                rows={4}
+              />
+            </div>
 
-        <div className="flex items-center gap-3">
-          <input
-            type="checkbox"
-            id="isPublished"
-            checked={formData.isPublished}
-            onChange={(e) =>
-              setFormData({ ...formData, isPublished: e.target.checked })
-            }
-            className="w-4 h-4"
-          />
-          <Label htmlFor="isPublished">Publish immediately</Label>
-        </div>
+            <div className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                id="isPublished"
+                checked={formData.isPublished}
+                onChange={(e) =>
+                  setFormData({ ...formData, isPublished: e.target.checked })
+                }
+                className="w-4 h-4"
+              />
+              <Label htmlFor="isPublished">Publish immediately</Label>
+            </div>
 
-        <div className="flex gap-3">
-          <Button
-            type="submit"
-            disabled={loading}
-            className="bg-blue-600 text-white hover:bg-blue-700"
-          >
-            {loading ? "Uploading..." : "Upload Video"}
-          </Button>
-          <Button
-            type="button"
-            onClick={() => router.push("/home")}
-            variant="secondary"
-          >
-            Cancel
-          </Button>
-        </div>
-      </form>
-
-      <div className="mt-8 p-4 bg-gray-100 rounded-lg">
-        <h3 className="font-semibold mb-2">Upload Guidelines:</h3>
-        <ul className="text-sm text-gray-600 space-y-1">
-          <li>• Supported video formats: MP4, AVI, MOV, MKV</li>
-          <li>• Maximum file size: 500 MB</li>
-          <li>• Recommended thumbnail size: 1280x720 pixels</li>
-          <li>• Maximum thumbnail size: 10 MB</li>
-          <li>• Title should not exceed 100 characters</li>
-          <li>• Description should not exceed 500 characters</li>
-        </ul>
-      </div>
+            <div className="flex gap-3">
+              <Button type="submit" disabled={loading}>
+                {loading ? "Uploading..." : "Upload Video"}
+              </Button>
+              <Button
+                type="button"
+                onClick={() => router.push("/home")}
+                variant="secondary"
+              >
+                Cancel
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
 }

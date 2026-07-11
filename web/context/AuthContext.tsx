@@ -88,8 +88,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         success: false,
         message: response.data.message || "Login failed",
       };
-    } catch {
-      return { success: false, message: "Login failed" };
+    } catch (error: any) {
+      return {
+        success: false,
+        message: error?.response?.data?.message || "Login failed",
+      };
     }
   };
 
@@ -112,8 +115,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         success: false,
         message: response.data.message || "Registration failed",
       };
-    } catch {
-      return { success: false, message: "Registration failed" };
+    } catch (error: any) {
+      return {
+        success: false,
+        message: error?.response?.data?.message || "Registration failed",
+      };
     }
   };
 

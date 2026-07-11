@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { type Video } from "@/lib/api";
+import { Card, CardContent } from "@/components/ui/card";
 
 interface VideoCardProps {
   video: Video;
@@ -45,9 +46,9 @@ const VideoCard = ({ video, onClick }: VideoCardProps) => {
     return `${Math.floor(diffDays / 365)} years ago`;
   };
 
-  const CardContent = (
-    <div
-      className="w-full bg-card rounded-xl overflow-hidden cursor-pointer group hover:shadow-lg dark:hover:shadow-primary/5 transition-all duration-300"
+  const CardContentInner = (
+    <Card
+      className="overflow-hidden cursor-pointer group hover:shadow-lg dark:hover:shadow-primary/5 transition-all duration-300"
       onClick={handleClick}
     >
       <div className="relative w-full pt-[56.25%]">
@@ -63,7 +64,7 @@ const VideoCard = ({ video, onClick }: VideoCardProps) => {
         </span>
       </div>
 
-      <div className="flex gap-3 p-3">
+      <CardContent className="flex gap-3 p-3">
         <Link
           href={`/@${video.owner?.username || "unknown"}`}
           onClick={(e) => e.stopPropagation()}
@@ -100,15 +101,15 @@ const VideoCard = ({ video, onClick }: VideoCardProps) => {
             {formatDate(video.createdAt)}
           </p>
         </div>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 
   if (onClick) {
-    return CardContent;
+    return CardContentInner;
   }
 
-  return <Link href={`/watch/${video.id}`}>{CardContent}</Link>;
+  return <Link href={`/watch/${video.id}`}>{CardContentInner}</Link>;
 };
 
 export default VideoCard;

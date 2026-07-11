@@ -57,7 +57,7 @@ export default function Header({ onMenuToggle }: HeaderProps) {
             <Video className="h-5 w-5 text-white" />
           </div>
           <span className="font-bold text-lg text-foreground hidden sm:block">
-            StreamTube
+            UTube
           </span>
         </Link>
 
@@ -95,13 +95,6 @@ export default function Header({ onMenuToggle }: HeaderProps) {
 
           {user ? (
             <>
-              {/* Upload Button */}
-              <Link href="/upload" className="hidden sm:block">
-                <Button variant="ghost" size="icon">
-                  <Upload className="h-5 w-5" />
-                </Button>
-              </Link>
-
               {/* User Menu */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

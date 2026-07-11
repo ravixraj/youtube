@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Heart,
   MessageSquare,
@@ -218,11 +219,13 @@ export default function WatchPage() {
               </div>
             </div>
 
-            <div className="mt-4 bg-muted rounded-xl p-4">
-              <p className="text-foreground whitespace-pre-wrap">
-                {video.description || "No description"}
-              </p>
-            </div>
+            <Card className="mt-4 bg-muted">
+              <CardContent>
+                <p className="text-foreground whitespace-pre-wrap">
+                  {video.description || "No description"}
+                </p>
+              </CardContent>
+            </Card>
           </div>
 
           <div>
@@ -287,16 +290,16 @@ export default function WatchPage() {
                     </div>
                     <p className="text-foreground mb-2">{comment.content}</p>
                     <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                      <button className="flex items-center gap-1 hover:text-foreground transition-colors">
-                        <ThumbsUp className="h-4 w-4" />
+                      <Button variant="ghost" size="sm">
+                        <ThumbsUp className="h-4 w-4 mr-1" />
                         Like
-                      </button>
-                      <button className="flex items-center gap-1 hover:text-foreground transition-colors">
+                      </Button>
+                      <Button variant="ghost" size="sm">
                         <ThumbsDown className="h-4 w-4" />
-                      </button>
-                      <button className="hover:text-foreground transition-colors">
+                      </Button>
+                      <Button variant="ghost" size="sm">
                         Reply
-                      </button>
+                      </Button>
                     </div>
 
                     {comment.replies && comment.replies.length > 0 && (
@@ -345,10 +348,16 @@ export default function WatchPage() {
         </div>
 
         <div className="lg:col-span-1">
-          <h3 className="font-semibold text-foreground mb-4">Related Videos</h3>
-          <p className="text-muted-foreground text-sm">
-            Related videos will appear here.
-          </p>
+          <Card>
+            <CardContent className="pt-6">
+              <h3 className="font-semibold text-foreground mb-4">
+                Related Videos
+              </h3>
+              <p className="text-muted-foreground text-sm">
+                Related videos will appear here.
+              </p>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>

@@ -4,14 +4,25 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from "@/components/ui/alert-dialog";
 import {
   Play,
   ListVideo,
   MessageSquare,
   Bell,
   Heart,
-  Repeat2,
-  Share,
+  Trash2,
 } from "lucide-react";
 import {
   userAPI,
@@ -21,10 +32,12 @@ import {
   type Video,
   type Tweet,
 } from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
 import VideoCard from "../_components/VideoCard";
 
 import VideoCardSkeleton from "../_components/VideoCardSkeleton";
 export default function ProfilePage() {
+  const { user } = useAuth();
   const params = useParams();
   const router = useRouter();
   const [channel, setChannel] = useState<ChannelUser | null>(null);
@@ -33,8 +46,9 @@ export default function ProfilePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("videos");
   const [isSubscribed, setIsSubscribed] = useState(false);
+  const [deletingTweetId, setDeletingTweetId] = useState<string | null>(null);
 
-  const username = (params.username as string)?.replace("@", "");
+  const username = params.username as string;
 
   useEffect(() => {
     if (username) {
@@ -88,6 +102,19 @@ export default function ProfilePage() {
 
   const handleVideoClick = (videoId: string) => {
     router.push(`/watch/${videoId}`);
+  };
+
+  const handleDeleteTweet = async (tweetId: string) => {
+    try {
+      const response = await tweetAPI.delete(tweetId);
+      if (response.data.success) {
+        setTweets((prev) => prev.filter((t) => t.id !== tweetId));
+      }
+    } catch (error) {
+      console.error("Error deleting tweet:", error);
+    } finally {
+      setDeletingTweetId(null);
+    }
   };
 
   const handleSubscribe = async () => {
@@ -189,18 +216,15 @@ export default function ProfilePage() {
       <div className="border-b border-border mb-6">
         <nav className="flex gap-6 overflow-x-auto">
           {tabs.map((tab) => (
-            <button
+            <Button
               key={tab.id}
+              variant={activeTab === tab.id ? "default" : "ghost"}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 pb-3 px-1 font-medium whitespace-nowrap transition-colors ${
-                activeTab === tab.id
-                  ? "text-primary border-b-2 border-primary"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
+              className="pb-3 px-1"
             >
-              <tab.icon className="h-4 w-4" />
+              <tab.icon className="h-4 w-4 mr-2" />
               {tab.label} ({tab.count})
-            </button>
+            </Button>
           ))}
         </nav>
       </div>
@@ -229,54 +253,84 @@ export default function ProfilePage() {
           <div className="space-y-4 max-w-2xl">
             {tweets.length > 0 ? (
               tweets.map((tweet) => (
-                <div
-                  key={tweet.id}
-                  className="bg-card border border-border rounded-xl p-4"
-                >
-                  <div className="flex items-start gap-3">
-                    <Avatar className="w-10 h-10">
-                      <AvatarImage
-                        src={tweet.user?.avatar}
-                        alt={tweet.user?.username}
-                      />
-                      <AvatarFallback className="bg-muted">
-                        {tweet.user?.username?.charAt(0).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-semibold text-foreground">
-                          {tweet.user?.fullname}
-                        </span>
-                        <span className="text-muted-foreground text-sm">
-                          @{tweet.user?.username}
-                        </span>
-                        <span className="text-muted-foreground text-sm">·</span>
-                        <span className="text-muted-foreground text-sm">
-                          {new Date(tweet.createdAt).toLocaleDateString()}
-                        </span>
-                      </div>
-                      <p className="mt-2 text-foreground">{tweet.content}</p>
-                      <div className="flex items-center gap-6 mt-3 text-muted-foreground">
-                        <button className="flex items-center gap-1 hover:text-primary transition-colors">
-                          <MessageSquare className="h-4 w-4" />
-                          <span className="text-sm">Reply</span>
-                        </button>
-                        <button className="flex items-center gap-1 hover:text-green-500 transition-colors">
-                          <Repeat2 className="h-4 w-4" />
-                          <span className="text-sm">Retweet</span>
-                        </button>
-                        <button className="flex items-center gap-1 hover:text-red-500 transition-colors">
-                          <Heart className="h-4 w-4" />
-                          <span className="text-sm">Like</span>
-                        </button>
-                        <button className="flex items-center gap-1 hover:text-primary transition-colors">
-                          <Share className="h-4 w-4" />
-                        </button>
+                <Card key={tweet.id}>
+                  <CardContent className="pt-6">
+                    <div className="flex items-start gap-3">
+                      <Avatar className="w-10 h-10">
+                        <AvatarImage
+                          src={tweet.user?.avatar}
+                          alt={tweet.user?.username}
+                        />
+                        <AvatarFallback className="bg-muted">
+                          {tweet.user?.username?.charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-semibold text-foreground">
+                            {tweet.user?.fullname}
+                          </span>
+                          <span className="text-muted-foreground text-sm">
+                            @{tweet.user?.username}
+                          </span>
+                          <span className="text-muted-foreground text-sm">
+                            ·
+                          </span>
+                          <span className="text-muted-foreground text-sm">
+                            {new Date(tweet.createdAt).toLocaleDateString()}
+                          </span>
+                        </div>
+                        <p className="mt-2 text-foreground">{tweet.content}</p>
+                        <div className="flex items-center gap-6 mt-3 text-muted-foreground">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="hover:text-red-500"
+                          >
+                            <Heart className="h-4 w-4 mr-1" />
+                          </Button>
+                          {tweet.userId === user?.id && (
+                            <AlertDialog
+                              open={deletingTweetId === tweet.id}
+                              onOpenChange={(open) =>
+                                setDeletingTweetId(open ? tweet.id : null)
+                              }
+                            >
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="hover:text-red-500"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent size="sm">
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>
+                                    Delete tweet?
+                                  </AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    This action cannot be undone.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    variant="destructive"
+                                    onClick={() => handleDeleteTweet(tweet.id)}
+                                  >
+                                    Delete
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </div>
+                  </CardContent>
+                </Card>
               ))
             ) : (
               <div className="text-center py-12">

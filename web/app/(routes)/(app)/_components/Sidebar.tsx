@@ -4,15 +4,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Home,
-  Heart,
   Video,
   ListVideo,
-  UserCheck,
-  Settings,
   Upload,
   MessageSquare,
   X,
+  LayoutDashboard,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
 
@@ -23,15 +22,15 @@ interface SidebarProps {
 
 const navItems = [
   { name: "Home", path: "/home", icon: Home, mobileView: true },
+  {
+    name: "Dashboard",
+    path: "/dashboard",
+    icon: LayoutDashboard,
+    mobileView: true,
+  },
   { name: "Playlist", path: "/playlist", icon: ListVideo, mobileView: true },
   { name: "Tweets", path: "/tweets", icon: MessageSquare, mobileView: true },
   { name: "Upload", path: "/upload", icon: Upload, mobileView: false },
-  {
-    name: "Subscriptions",
-    path: "/subscriptions",
-    icon: Heart,
-    mobileView: false,
-  },
 ];
 
 export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
@@ -87,14 +86,11 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
             <div className="w-8 h-8 bg-red-600 rounded-full flex items-center justify-center">
               <Video className="h-5 w-5 text-white" />
             </div>
-            <span className="font-bold text-lg">StreamTube</span>
+            <span className="font-bold text-lg">UTube</span>
           </div>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-muted rounded-lg transition-colors"
-          >
+          <Button variant="ghost" size="icon" onClick={onClose}>
             <X className="h-5 w-5" />
-          </button>
+          </Button>
         </div>
 
         {/* Navigation */}

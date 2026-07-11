@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Youtube | Welcome",
-  description: "Signin and Signup to Youtube",
+  title: "UTube | Welcome",
+  description: "Signin and Signup to UTube",
 };
 
 export default function AuthLayout({

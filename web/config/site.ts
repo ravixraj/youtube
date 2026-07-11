@@ -1,11 +1,11 @@
 import { Metadata } from "next";
 
-const TITLE = "YOUTUBE";
+const TITLE = "UTube";
 const DESCRIPTION =
-  "Open source video sharing platform. Drop in replacement for Youtube 😂";
+  "Open source video sharing platform. Drop in replacement for UTube 😂";
 
 const PREVIEW_IMAGE_URL = "";
-const ALT_TITLE = "YOUTUBE HOME PAGE";
+const ALT_TITLE = "UTube HOME PAGE";
 const BASE_URL = "http://localhost:3000";
 
 export const siteConfig: Metadata = {
@@ -14,7 +14,7 @@ export const siteConfig: Metadata = {
   icons: {
     icon: "/favicon.ico",
   },
-  applicationName: "Youtube",
+  applicationName: "UTube",
   creator: "Ravi Raj",
   twitter: {
     creator: "@kirat_tw",
@@ -33,7 +33,7 @@ export const siteConfig: Metadata = {
   openGraph: {
     title: TITLE,
     description: DESCRIPTION,
-    siteName: "Youtube",
+    siteName: "UTube",
     url: BASE_URL,
     locale: "en_US",
     type: "website",
@@ -51,9 +51,9 @@ export const siteConfig: Metadata = {
     canonical: BASE_URL,
   },
   keywords: [
-    "Youtube Open source alternative",
+    "UTube Open source alternative",
     "Open source video sharing platform",
-    "Ravi Raj Youtube Project",
+    "Ravi Raj UTube Project",
   ],
   metadataBase: new URL(BASE_URL),
 };
