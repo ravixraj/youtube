@@ -23,23 +23,15 @@ interface SidebarProps {
 
 const navItems = [
   { name: "Home", path: "/home", icon: Home, mobileView: true },
+  { name: "Playlist", path: "/playlist", icon: ListVideo, mobileView: true },
+  { name: "Tweets", path: "/tweets", icon: MessageSquare, mobileView: true },
+  { name: "Upload", path: "/upload", icon: Upload, mobileView: false },
   {
     name: "Subscriptions",
     path: "/subscriptions",
     icon: Heart,
-    mobileView: true,
-  },
-  { name: "Playlist", path: "/playlist", icon: ListVideo, mobileView: true },
-  { name: "Tweets", path: "/tweets", icon: MessageSquare, mobileView: false },
-  { name: "Upload", path: "/upload", icon: Upload, mobileView: false },
-  { name: "My Content", path: "/my-content", icon: Video, mobileView: false },
-  {
-    name: "Subscribers",
-    path: "/subscribers",
-    icon: UserCheck,
     mobileView: false,
   },
-  { name: "Settings", path: "/settings", icon: Settings, mobileView: false },
 ];
 
 export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {

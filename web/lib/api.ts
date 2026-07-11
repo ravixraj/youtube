@@ -11,12 +11,7 @@ const apiClient = axios.create({
 
 apiClient.interceptors.request.use((config) => {
   const token =
-    typeof window !== "undefined"
-      ? document.cookie
-          .split("; ")
-          .find((row) => row.startsWith("accessToken="))
-          ?.split("=")[1]
-      : null;
+    typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -81,8 +76,7 @@ export interface Comment {
   id: string;
   userId: string;
   content: string;
-  tweetId?: string;
-  videoId?: string;
+  videoId: string;
   createdAt: string;
   updatedAt: string;
   user?: {
@@ -119,14 +113,21 @@ export interface ApiResponse<T = unknown> {
 // ─── Auth API ─────────────────────────────────────────────────────────
 
 const loginApi = (data: { username: string; password: string }) =>
-  apiClient.post<ApiResponse<{ user: User }>>("/users/login", data);
+  apiClient.post<ApiResponse<{ user: User; accessToken: string }>>(
+    "/users/login",
+    data,
+  );
 
 const registerApi = (data: {
   username: string;
   fullname: string;
   email: string;
   password: string;
-}) => apiClient.post<ApiResponse<{ user: User }>>("/users/register", data);
+}) =>
+  apiClient.post<ApiResponse<{ user: User; accessToken: string }>>(
+    "/users/register",
+    data,
+  );
 
 const refreshTokenApi = () =>
   apiClient.post<ApiResponse<null>>("/users/refresh-token");
@@ -179,16 +180,12 @@ const uploadCoverImageApi = (file: File) => {
   );
 };
 
-const getHistoryApi = () =>
-  apiClient.get<ApiResponse<{ history: unknown[] }>>("/users/history");
-
 export const userAPI = {
   getCurrentUser: getCurrentUserApi,
   getChannel: getChannelApi,
   updateAccount: updateAccountApi,
   uploadAvatar: uploadAvatarApi,
   uploadCoverImage: uploadCoverImageApi,
-  getHistory: getHistoryApi,
 };
 
 // ─── Video API ────────────────────────────────────────────────────────
@@ -203,21 +200,23 @@ const searchVideosApi = (params?: {
 }) => apiClient.get<ApiResponse<{ videos: Video[] }>>("/videos", { params });
 
 const getVideoByIdApi = (videoId: string) =>
-  apiClient.get<ApiResponse<Video>>(`/videos/${videoId}`);
+  apiClient.get<ApiResponse<{ video: Video }>>(`/videos/${videoId}`);
 
 const createVideoApi = (data: FormData) =>
-  apiClient.post<ApiResponse<Video>>("/videos", data);
+  apiClient.post<ApiResponse<{ video: Video }>>("/videos", data);
 
 const updateVideoApi = (
   videoId: string,
   data: { title?: string; description?: string },
-) => apiClient.patch<ApiResponse<Video>>(`/videos/${videoId}`, data);
+) => apiClient.patch<ApiResponse<{ video: Video }>>(`/videos/${videoId}`, data);
 
 const deleteVideoApi = (videoId: string) =>
-  apiClient.delete<ApiResponse<null>>(`/videos/${videoId}`);
+  apiClient.delete<ApiResponse<{ video: Video }>>(`/videos/${videoId}`);
 
 const togglePublishApi = (videoId: string) =>
-  apiClient.patch<ApiResponse<Video>>(`/videos/toggle/publish/${videoId}`);
+  apiClient.patch<ApiResponse<{ video: Video }>>(
+    `/videos/toggle/publish/${videoId}`,
+  );
 
 export const videoAPI = {
   search: searchVideosApi,
@@ -231,19 +230,21 @@ export const videoAPI = {
 // ─── Comment API ──────────────────────────────────────────────────────
 
 const getCommentsByVideoApi = (videoId: string) =>
-  apiClient.get<ApiResponse<Comment[]>>(`/comments/${videoId}`);
+  apiClient.get<ApiResponse<{ comments: Comment[] }>>(
+    `/comments/video/${videoId}`,
+  );
 
-const createCommentApi = (data: {
-  videoId: string;
-  content: string;
-  tweetId?: string;
-}) => apiClient.post<ApiResponse<Comment>>("/comments", data);
+const createCommentApi = (data: { videoId: string; content: string }) =>
+  apiClient.post<ApiResponse<{ comment: Comment }>>("/comments", data);
 
 const updateCommentApi = (commentId: string, data: { content: string }) =>
-  apiClient.patch<ApiResponse<Comment>>(`/comments/${commentId}`, data);
+  apiClient.patch<ApiResponse<{ comment: Comment }>>(
+    `/comments/${commentId}`,
+    data,
+  );
 
 const deleteCommentApi = (commentId: string) =>
-  apiClient.delete<ApiResponse<null>>(`/comments/${commentId}`);
+  apiClient.delete<ApiResponse<{ comment: Comment }>>(`/comments/${commentId}`);
 
 export const commentAPI = {
   getByVideo: getCommentsByVideoApi,
@@ -255,29 +256,37 @@ export const commentAPI = {
 // ─── Playlist API ─────────────────────────────────────────────────────
 
 const createPlaylistApi = (data: { name: string; description?: string }) =>
-  apiClient.post<ApiResponse<Playlist>>("/playlists", data);
+  apiClient.post<ApiResponse<{ newPlaylist: Playlist }>>("/playlists", data);
 
 const updatePlaylistApi = (
   playlistId: string,
   data: { name?: string; description?: string },
-) => apiClient.patch<ApiResponse<Playlist>>(`/playlists/${playlistId}`, data);
+) =>
+  apiClient.patch<ApiResponse<{ updatedPlaylist: Playlist }>>(
+    `/playlists/${playlistId}`,
+    data,
+  );
 
 const deletePlaylistApi = (playlistId: string) =>
   apiClient.delete<ApiResponse<null>>(`/playlists/${playlistId}`);
 
 const getPlaylistByIdApi = (playlistId: string) =>
-  apiClient.get<ApiResponse<Playlist>>(`/playlists/${playlistId}`);
+  apiClient.get<ApiResponse<{ playlist: Playlist }>>(
+    `/playlists/${playlistId}`,
+  );
 
 const getPlaylistsByUserApi = (userId: string) =>
-  apiClient.get<ApiResponse<Playlist[]>>(`/playlists/user/${userId}`);
+  apiClient.get<ApiResponse<{ playlists: Playlist[] }>>(
+    `/playlists/user/${userId}`,
+  );
 
 const addVideoToPlaylistApi = (playlistId: string, videoId: string) =>
-  apiClient.patch<ApiResponse<Playlist>>(
+  apiClient.patch<ApiResponse<{ playlist: Playlist }>>(
     `/playlists/add/${videoId}/${playlistId}`,
   );
 
 const removeVideoFromPlaylistApi = (playlistId: string, videoId: string) =>
-  apiClient.patch<ApiResponse<Playlist>>(
+  apiClient.patch<ApiResponse<{ newPlaylist: Playlist }>>(
     `/playlists/remove/${videoId}/${playlistId}`,
   );
 
@@ -294,16 +303,16 @@ export const playlistAPI = {
 // ─── Tweet API ────────────────────────────────────────────────────────
 
 const createTweetApi = (data: { content: string }) =>
-  apiClient.post<ApiResponse<Tweet>>("/tweets", data);
+  apiClient.post<ApiResponse<{ tweet: Tweet }>>("/tweets", data);
 
 const updateTweetApi = (tweetId: string, data: { content: string }) =>
-  apiClient.patch<ApiResponse<Tweet>>(`/tweets/${tweetId}`, data);
+  apiClient.patch<ApiResponse<{ tweet: Tweet }>>(`/tweets/${tweetId}`, data);
 
 const deleteTweetApi = (tweetId: string) =>
-  apiClient.delete<ApiResponse<null>>(`/tweets/${tweetId}`);
+  apiClient.delete<ApiResponse<{ tweet: Tweet }>>(`/tweets/${tweetId}`);
 
 const getTweetsByUserApi = (userId: string) =>
-  apiClient.get<ApiResponse<Tweet[]>>(`/tweets/user/${userId}`);
+  apiClient.get<ApiResponse<{ tweets: Tweet[] }>>(`/tweets/user/${userId}`);
 
 export const tweetAPI = {
   create: createTweetApi,
@@ -315,22 +324,18 @@ export const tweetAPI = {
 // ─── Like API ─────────────────────────────────────────────────────────
 
 const toggleVideoLikeApi = (videoId: string) =>
-  apiClient.post<ApiResponse<{ isLiked: boolean }>>(
-    `/likes/toggle/v/${videoId}`,
-  );
+  apiClient.post<ApiResponse<{ liked: boolean }>>(`/likes/toggle/v/${videoId}`);
 
 const toggleCommentLikeApi = (commentId: string) =>
-  apiClient.post<ApiResponse<{ isLiked: boolean }>>(
+  apiClient.post<ApiResponse<{ liked: boolean }>>(
     `/likes/toggle/c/${commentId}`,
   );
 
 const toggleTweetLikeApi = (tweetId: string) =>
-  apiClient.post<ApiResponse<{ isLiked: boolean }>>(
-    `/likes/toggle/t/${tweetId}`,
-  );
+  apiClient.post<ApiResponse<{ liked: boolean }>>(`/likes/toggle/t/${tweetId}`);
 
 const getLikedVideosApi = () =>
-  apiClient.get<ApiResponse<Video[]>>("/likes/videos");
+  apiClient.get<ApiResponse<{ likedVideos: unknown[] }>>("/likes/videos");
 
 export const likeAPI = {
   toggleVideo: toggleVideoLikeApi,
@@ -342,15 +347,37 @@ export const likeAPI = {
 // ─── Subscription API ─────────────────────────────────────────────────
 
 const toggleSubscriptionApi = (channelId: string) =>
-  apiClient.post<ApiResponse<{ isSubscribed: boolean }>>(
+  apiClient.post<ApiResponse<{ subscribed: boolean }>>(
     `/subscriptions/c/${channelId}`,
   );
 
 const getSubscribersApi = (channelId: string) =>
-  apiClient.get<ApiResponse<unknown[]>>(`/subscriptions/u/${channelId}`);
+  apiClient.get<
+    ApiResponse<{
+      channel: {
+        subscriber: {
+          id: string;
+          username: string;
+          fullname: string;
+          avatar?: string;
+        };
+      };
+    }>
+  >(`/subscriptions/u/${channelId}`);
 
 const getSubscribedChannelsApi = () =>
-  apiClient.get<ApiResponse<unknown[]>>("/subscriptions/channels");
+  apiClient.get<
+    ApiResponse<{
+      channels: {
+        channel: {
+          id: string;
+          username: string;
+          fullname: string;
+          avatar?: string;
+        };
+      }[];
+    }>
+  >("/subscriptions/channels");
 
 export const subscriptionAPI = {
   toggle: toggleSubscriptionApi,

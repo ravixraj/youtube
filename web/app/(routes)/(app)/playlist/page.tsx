@@ -28,7 +28,7 @@ export default function PlaylistsPage() {
     try {
       const response = await playlistAPI.getByUser(user?.id || "");
       if (response.data.success && response.data.data) {
-        setPlaylists(response.data.data);
+        setPlaylists(response.data.data.playlists);
       }
     } catch (error) {
       console.error("Error fetching playlists:", error);

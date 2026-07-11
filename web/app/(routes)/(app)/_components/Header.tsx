@@ -1,14 +1,6 @@
 "use client";
 
-import {
-  SearchIcon,
-  Menu,
-  Upload,
-  LogOut,
-  Settings,
-  User,
-  Video,
-} from "lucide-react";
+import { SearchIcon, Menu, Upload, LogOut, User, Video } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -132,17 +124,10 @@ export default function Header({ onMenuToggle }: HeaderProps) {
                       @{user.username}
                     </p>
                   </div>
-                  <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
-                    <Link href={`/@${user.username}`}>
+                    <Link href={`/${user.username}`}>
                       <User className="mr-2 h-4 w-4" />
                       Your Channel
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/settings">
-                      <Settings className="mr-2 h-4 w-4" />
-                      Settings
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />

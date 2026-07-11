@@ -3,9 +3,9 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { videoAPI, type Video } from "@/lib/api";
-import VideoCard from "@/components/VideoCard";
-import VideoCardSkeleton from "@/components/VideoCardSkeleton";
+import VideoCard from "../_components/VideoCard";
 
+import VideoCardSkeleton from "../_components/VideoCardSkeleton";
 export default function HomePage() {
   const searchParams = useSearchParams();
   const router = useRouter();

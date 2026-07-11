@@ -21,9 +21,9 @@ import {
   type Video,
   type Tweet,
 } from "@/lib/api";
-import VideoCard from "@/components/VideoCard";
-import VideoCardSkeleton from "@/components/VideoCardSkeleton";
+import VideoCard from "../_components/VideoCard";
 
+import VideoCardSkeleton from "../_components/VideoCardSkeleton";
 export default function ProfilePage() {
   const params = useParams();
   const router = useRouter();
@@ -77,7 +77,7 @@ export default function ProfilePage() {
     try {
       const response = await tweetAPI.getByUser(channel?.id || "");
       if (response.data.success && response.data.data) {
-        setTweets(response.data.data);
+        setTweets(response.data.data.tweets);
       }
     } catch (error) {
       console.error("Error fetching tweets:", error);

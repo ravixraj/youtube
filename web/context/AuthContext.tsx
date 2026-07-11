@@ -40,6 +40,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } catch {
       // ignore
     }
+    localStorage.removeItem("accessToken");
     setUser(null);
   }, []);
 
@@ -78,6 +79,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const response = await authAPI.login(credentials);
 
       if (response.data.success && response.data.data) {
+        localStorage.setItem("accessToken", response.data.data.accessToken);
         setUser(response.data.data.user);
         return { success: true, message: response.data.message };
       }
@@ -101,6 +103,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const response = await authAPI.register(data);
 
       if (response.data.success && response.data.data?.user) {
+        localStorage.setItem("accessToken", response.data.data.accessToken);
         setUser(response.data.data.user);
         return { success: true, message: response.data.message };
       }

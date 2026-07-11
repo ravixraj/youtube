@@ -50,7 +50,7 @@ export default function WatchPage() {
     try {
       const response = await videoAPI.getById(videoId);
       if (response.data.success && response.data.data) {
-        const videoData = response.data.data;
+        const videoData = response.data.data.video;
         setVideo(videoData);
         setViewCount(videoData.viewCount);
       }
@@ -65,8 +65,8 @@ export default function WatchPage() {
     try {
       const response = await commentAPI.getByVideo(videoId);
       if (response.data.success && response.data.data) {
-        setComments(response.data.data);
-        setCommentCount(response.data.data.length);
+        setComments(response.data.data.comments);
+        setCommentCount(response.data.data.comments.length);
       }
     } catch (error) {
       console.error("Error fetching comments:", error);

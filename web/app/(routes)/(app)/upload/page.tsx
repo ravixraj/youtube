@@ -27,6 +27,10 @@ export default function UploadPage() {
       setError("Please select a video file");
       return;
     }
+    if (!thumbnailFile) {
+      setError("Please select a thumbnail image");
+      return;
+    }
 
     setLoading(true);
     setError(null);
@@ -34,16 +38,15 @@ export default function UploadPage() {
     try {
       const data = new FormData();
       data.append("title", formData.title);
-      if (formData.description)
-        data.append("description", formData.description);
+      data.append("description", formData.description);
       data.append("isPublished", String(formData.isPublished));
       data.append("videoFile", videoFile);
-      if (thumbnailFile) data.append("thumbnail", thumbnailFile);
+      data.append("thumbnail", thumbnailFile);
 
       const response = await videoAPI.create(data);
 
       if (response.data.success && response.data.data) {
-        router.push(`/watch/${response.data.data.id}`);
+        router.push(`/watch/${response.data.data.video.id}`);
       } else {
         setError(response.data.message || "Upload failed");
       }
@@ -85,12 +88,13 @@ export default function UploadPage() {
         </div>
 
         <div className="grid gap-3">
-          <Label htmlFor="thumbnailFile">Thumbnail (Optional)</Label>
+          <Label htmlFor="thumbnailFile">Thumbnail *</Label>
           <Input
             id="thumbnailFile"
             type="file"
             accept="image/*"
             onChange={(e) => setThumbnailFile(e.target.files?.[0] || null)}
+            required
           />
           {thumbnailFile && (
             <p className="text-sm text-green-600">
