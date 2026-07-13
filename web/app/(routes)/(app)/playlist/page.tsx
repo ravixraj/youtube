@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
-import { ListVideo, Plus, Trash2, Play } from "lucide-react";
+import { ListVideo, Plus, Trash2, Play, Edit3 } from "lucide-react";
 import Link from "next/link";
 
 export default function PlaylistsPage() {
@@ -17,6 +17,11 @@ export default function PlaylistsPage() {
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [formData, setFormData] = useState({
+    name: "",
+    description: "",
+  });
+  const [editingPlaylist, setEditingPlaylist] = useState<string | null>(null);
+  const [editFormData, setEditFormData] = useState({
     name: "",
     description: "",
   });
@@ -54,6 +59,20 @@ export default function PlaylistsPage() {
       console.error("Error creating playlist:", error);
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleUpdatePlaylist = async (playlistId: string) => {
+    if (!editFormData.name.trim()) return;
+    try {
+      const response = await playlistAPI.update(playlistId, editFormData);
+      if (response.data.success) {
+        setEditingPlaylist(null);
+        setEditFormData({ name: "", description: "" });
+        fetchPlaylists();
+      }
+    } catch (error) {
+      console.error("Error updating playlist:", error);
     }
   };
 
@@ -128,29 +147,88 @@ export default function PlaylistsPage() {
               </Link>
 
               <CardContent className="p-4">
-                <Link href={`/playlist/${playlist.id}`}>
-                  <h3 className="font-semibold text-foreground line-clamp-1 hover:text-primary transition-colors">
-                    {playlist.name}
-                  </h3>
-                </Link>
-                {playlist.description && (
-                  <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
-                    {playlist.description}
-                  </p>
+                {editingPlaylist === playlist.id ? (
+                  <div className="space-y-2">
+                    <Input
+                      value={editFormData.name}
+                      onChange={(e) =>
+                        setEditFormData({
+                          ...editFormData,
+                          name: e.target.value,
+                        })
+                      }
+                      placeholder="Playlist name"
+                    />
+                    <Textarea
+                      value={editFormData.description}
+                      onChange={(e) =>
+                        setEditFormData({
+                          ...editFormData,
+                          description: e.target.value,
+                        })
+                      }
+                      placeholder="Description"
+                      rows={2}
+                    />
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        onClick={() => handleUpdatePlaylist(playlist.id)}
+                      >
+                        Save
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setEditingPlaylist(null)}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <Link href={`/playlist/${playlist.id}`}>
+                      <h3 className="font-semibold text-foreground line-clamp-1 hover:text-primary transition-colors">
+                        {playlist.name}
+                      </h3>
+                    </Link>
+                    {playlist.description && (
+                      <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
+                        {playlist.description}
+                      </p>
+                    )}
+                    <div className="flex items-center justify-between mt-3">
+                      <span className="text-sm text-muted-foreground">
+                        {playlist.videos?.length || 0} videos
+                      </span>
+                      <div className="flex gap-1">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => {
+                            setEditingPlaylist(playlist.id);
+                            setEditFormData({
+                              name: playlist.name,
+                              description: playlist.description || "",
+                            });
+                          }}
+                          className="text-muted-foreground hover:text-blue-500"
+                        >
+                          <Edit3 className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleDeletePlaylist(playlist.id)}
+                          className="text-muted-foreground hover:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </>
                 )}
-                <div className="flex items-center justify-between mt-3">
-                  <span className="text-sm text-muted-foreground">
-                    {playlist.videos?.length || 0} videos
-                  </span>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => handleDeletePlaylist(playlist.id)}
-                    className="text-muted-foreground hover:text-destructive"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
               </CardContent>
             </Card>
           ))}

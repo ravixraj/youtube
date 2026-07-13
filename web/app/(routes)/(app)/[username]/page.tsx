@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
 import {
   AlertDialog,
   AlertDialogTrigger,
@@ -23,19 +25,26 @@ import {
   Bell,
   Heart,
   Trash2,
+  Edit3,
+  Check,
+  X,
+  Users,
 } from "lucide-react";
 import {
   userAPI,
   videoAPI,
   tweetAPI,
+  likeAPI,
+  subscriptionAPI,
+  playlistAPI,
   type ChannelUser,
   type Video,
   type Tweet,
+  type Playlist,
 } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import VideoCard from "../_components/VideoCard";
 
-import VideoCardSkeleton from "../_components/VideoCardSkeleton";
 export default function ProfilePage() {
   const { user } = useAuth();
   const params = useParams();
@@ -47,6 +56,12 @@ export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState("videos");
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [deletingTweetId, setDeletingTweetId] = useState<string | null>(null);
+  const [editingTweetId, setEditingTweetId] = useState<string | null>(null);
+  const [editTweetContent, setEditTweetContent] = useState("");
+  const [tweetLikes, setTweetLikes] = useState<Record<string, boolean>>({});
+  const [playlists, setPlaylists] = useState<Playlist[]>([]);
+  const [showSubscribers, setShowSubscribers] = useState(false);
+  const [subscribers, setSubscribers] = useState<any[]>([]);
 
   const username = params.username as string;
 
@@ -60,6 +75,7 @@ export default function ProfilePage() {
     if (channel?.id) {
       fetchVideos();
       fetchTweets();
+      fetchPlaylists();
     }
   }, [channel?.id]);
 
@@ -104,6 +120,49 @@ export default function ProfilePage() {
     router.push(`/watch/${videoId}`);
   };
 
+  const handleUpdateTweet = async (tweetId: string) => {
+    if (!editTweetContent.trim()) return;
+    try {
+      const response = await tweetAPI.update(tweetId, {
+        content: editTweetContent,
+      });
+      if (response.data.success) {
+        setEditingTweetId(null);
+        setEditTweetContent("");
+        fetchTweets();
+      }
+    } catch (error) {
+      console.error("Error updating tweet:", error);
+    }
+  };
+
+  const handleTweetLike = async (tweetId: string) => {
+    try {
+      const response = await likeAPI.toggleTweet(tweetId);
+      if (response.data.success) {
+        setTweetLikes((prev) => ({
+          ...prev,
+          [tweetId]: response.data.data?.liked ?? !prev[tweetId],
+        }));
+      }
+    } catch (error) {
+      console.error("Error liking tweet:", error);
+    }
+  };
+
+  const handleShowSubscribers = async () => {
+    if (!channel?.id) return;
+    try {
+      const response = await subscriptionAPI.getSubscribers(channel.id);
+      if (response.data.data) {
+        setSubscribers([response.data.data.channel.subscriber]);
+        setShowSubscribers(true);
+      }
+    } catch (error) {
+      console.error("Error fetching subscribers:", error);
+    }
+  };
+
   const handleDeleteTweet = async (tweetId: string) => {
     try {
       const response = await tweetAPI.delete(tweetId);
@@ -114,6 +173,18 @@ export default function ProfilePage() {
       console.error("Error deleting tweet:", error);
     } finally {
       setDeletingTweetId(null);
+    }
+  };
+
+  const fetchPlaylists = async () => {
+    if (!channel?.id) return;
+    try {
+      const response = await playlistAPI.getByUser(channel.id);
+      if (response.data.success && response.data.data) {
+        setPlaylists(response.data.data.playlists);
+      }
+    } catch (error) {
+      console.error("Error fetching playlists:", error);
     }
   };
 
@@ -168,7 +239,12 @@ export default function ProfilePage() {
       icon: MessageSquare,
       count: tweets.length,
     },
-    { id: "playlists", label: "Playlists", icon: Play, count: 0 },
+    {
+      id: "playlists",
+      label: "Playlists",
+      icon: Play,
+      count: playlists.length,
+    },
   ];
 
   return (
@@ -196,7 +272,13 @@ export default function ProfilePage() {
           </h1>
           <p className="text-muted-foreground">@{channel.username}</p>
           <p className="text-sm text-muted-foreground mt-1">
-            {channel.subscribersCount} subscribers · Joined{" "}
+            <button
+              onClick={handleShowSubscribers}
+              className="hover:text-primary transition-colors"
+            >
+              {channel.subscribersCount} subscribers
+            </button>
+            {" · Joined "}
             {new Date(channel.createdAt).toLocaleDateString("en-US", {
               month: "long",
               year: "numeric",
@@ -280,51 +362,104 @@ export default function ProfilePage() {
                             {new Date(tweet.createdAt).toLocaleDateString()}
                           </span>
                         </div>
-                        <p className="mt-2 text-foreground">{tweet.content}</p>
+                        {editingTweetId === tweet.id ? (
+                          <div className="mt-2 space-y-2">
+                            <Textarea
+                              value={editTweetContent}
+                              onChange={(e) =>
+                                setEditTweetContent(e.target.value)
+                              }
+                              rows={3}
+                            />
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                onClick={() => handleUpdateTweet(tweet.id)}
+                              >
+                                <Check className="h-4 w-4 mr-1" /> Save
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => setEditingTweetId(null)}
+                              >
+                                <X className="h-4 w-4 mr-1" /> Cancel
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="mt-2 text-foreground">
+                            {tweet.content}
+                          </p>
+                        )}
                         <div className="flex items-center gap-6 mt-3 text-muted-foreground">
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="hover:text-red-500"
+                            onClick={() => handleTweetLike(tweet.id)}
+                            className={
+                              tweetLikes[tweet.id]
+                                ? "text-red-500"
+                                : "hover:text-red-500"
+                            }
                           >
-                            <Heart className="h-4 w-4 mr-1" />
+                            <Heart
+                              className={`h-4 w-4 mr-1 ${tweetLikes[tweet.id] ? "fill-current" : ""}`}
+                            />
                           </Button>
                           {tweet.userId === user?.id && (
-                            <AlertDialog
-                              open={deletingTweetId === tweet.id}
-                              onOpenChange={(open) =>
-                                setDeletingTweetId(open ? tweet.id : null)
-                              }
-                            >
-                              <AlertDialogTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="hover:text-red-500"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent size="sm">
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>
-                                    Delete tweet?
-                                  </AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    This action cannot be undone.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    variant="destructive"
-                                    onClick={() => handleDeleteTweet(tweet.id)}
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="hover:text-blue-500"
+                                onClick={() => {
+                                  setEditingTweetId(tweet.id);
+                                  setEditTweetContent(tweet.content);
+                                }}
+                              >
+                                <Edit3 className="h-4 w-4" />
+                              </Button>
+                              <AlertDialog
+                                open={deletingTweetId === tweet.id}
+                                onOpenChange={(open) =>
+                                  setDeletingTweetId(open ? tweet.id : null)
+                                }
+                              >
+                                <AlertDialogTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="hover:text-red-500"
                                   >
-                                    Delete
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent size="sm">
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>
+                                      Delete tweet?
+                                    </AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      This action cannot be undone.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>
+                                      Cancel
+                                    </AlertDialogCancel>
+                                    <AlertDialogAction
+                                      variant="destructive"
+                                      onClick={() =>
+                                        handleDeleteTweet(tweet.id)
+                                      }
+                                    >
+                                      Delete
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </>
                           )}
                         </div>
                       </div>
@@ -342,12 +477,103 @@ export default function ProfilePage() {
         )}
 
         {activeTab === "playlists" && (
-          <div className="text-center py-12">
-            <Play className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground">No playlists available</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {playlists.length > 0 ? (
+              playlists.map((playlist) => (
+                <Link key={playlist.id} href={`/playlist/${playlist.id}`}>
+                  <Card className="group overflow-hidden h-full">
+                    <div className="relative w-full pt-[56.25%]">
+                      {playlist.videos && playlist.videos.length > 0 ? (
+                        <>
+                          <img
+                            src={
+                              playlist.videos[0].thumbnail ||
+                              "/placeholder-video.jpg"
+                            }
+                            alt={playlist.name}
+                            className="absolute inset-0 h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          />
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <Play className="h-12 w-12 text-white" />
+                          </div>
+                        </>
+                      ) : (
+                        <div className="absolute inset-0 bg-muted flex items-center justify-center">
+                          <ListVideo className="h-12 w-12 text-muted-foreground" />
+                        </div>
+                      )}
+                    </div>
+                    <CardContent className="p-4">
+                      <h3 className="font-semibold line-clamp-1">
+                        {playlist.name}
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        {playlist.videos?.length || 0} videos
+                      </p>
+                    </CardContent>
+                  </Card>
+                </Link>
+              ))
+            ) : (
+              <div className="col-span-full text-center py-12">
+                <Play className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+                <p className="text-muted-foreground">No playlists available</p>
+              </div>
+            )}
           </div>
         )}
       </div>
+
+      {showSubscribers && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={() => setShowSubscribers(false)}
+        >
+          <Card
+            className="w-full max-w-md shadow-lg"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold flex items-center gap-2">
+                  <Users className="h-5 w-5" /> Subscribers
+                </h2>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowSubscribers(false)}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+              {subscribers.length === 0 ? (
+                <p className="text-muted-foreground text-center py-8">
+                  No subscribers yet
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {subscribers.map((sub: any, i: number) => (
+                    <div key={i} className="flex items-center gap-3">
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage src={sub.avatar} alt={sub.username} />
+                        <AvatarFallback>
+                          {sub.username?.charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-medium">{sub.fullname}</p>
+                        <p className="text-sm text-muted-foreground">
+                          @{sub.username}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

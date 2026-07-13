@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { tweetAPI, type Tweet } from "@/lib/api";
+import { tweetAPI, likeAPI, type Tweet } from "@/lib/api";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -19,7 +19,7 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
-import { MessageSquare, Heart, Trash2 } from "lucide-react";
+import { MessageSquare, Heart, Trash2, Edit3, Check, X } from "lucide-react";
 
 export default function TweetsPage() {
   const { user } = useAuth();
@@ -28,6 +28,9 @@ export default function TweetsPage() {
   const [loading, setLoading] = useState(true);
   const [posting, setPosting] = useState(false);
   const [deletingTweetId, setDeletingTweetId] = useState<string | null>(null);
+  const [editingTweetId, setEditingTweetId] = useState<string | null>(null);
+  const [editTweetContent, setEditTweetContent] = useState("");
+  const [tweetLikes, setTweetLikes] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     if (user?.id) {
@@ -67,6 +70,36 @@ export default function TweetsPage() {
       console.error("Error creating tweet:", error);
     } finally {
       setPosting(false);
+    }
+  };
+
+  const handleUpdateTweet = async (tweetId: string) => {
+    if (!editTweetContent.trim()) return;
+    try {
+      const response = await tweetAPI.update(tweetId, {
+        content: editTweetContent,
+      });
+      if (response.data.success) {
+        setEditingTweetId(null);
+        setEditTweetContent("");
+        fetchTweets();
+      }
+    } catch (error) {
+      console.error("Error updating tweet:", error);
+    }
+  };
+
+  const handleTweetLike = async (tweetId: string) => {
+    try {
+      const response = await likeAPI.toggleTweet(tweetId);
+      if (response.data.success) {
+        setTweetLikes((prev) => ({
+          ...prev,
+          [tweetId]: response.data.data?.liked ?? !prev[tweetId],
+        }));
+      }
+    } catch (error) {
+      console.error("Error liking tweet:", error);
     }
   };
 
@@ -186,51 +219,98 @@ export default function TweetsPage() {
                         {new Date(tweet.createdAt).toLocaleDateString()}
                       </span>
                     </div>
-                    <p className="mt-2 text-foreground whitespace-pre-wrap break-words">
-                      {tweet.content}
-                    </p>
+                    {editingTweetId === tweet.id ? (
+                      <div className="mt-2 space-y-2">
+                        <Textarea
+                          value={editTweetContent}
+                          onChange={(e) => setEditTweetContent(e.target.value)}
+                          rows={3}
+                        />
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            onClick={() => handleUpdateTweet(tweet.id)}
+                          >
+                            <Check className="h-4 w-4 mr-1" /> Save
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setEditingTweetId(null)}
+                          >
+                            <X className="h-4 w-4 mr-1" /> Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="mt-2 text-foreground whitespace-pre-wrap break-words">
+                        {tweet.content}
+                      </p>
+                    )}
                     <div className="flex items-center gap-6 mt-3 text-muted-foreground">
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="hover:text-red-500 gap-1.5"
+                        onClick={() => handleTweetLike(tweet.id)}
+                        className={
+                          tweetLikes[tweet.id]
+                            ? "text-red-500"
+                            : "hover:text-red-500 gap-1.5"
+                        }
                       >
-                        <Heart className="h-4 w-4" />
+                        <Heart
+                          className={`h-4 w-4 ${tweetLikes[tweet.id] ? "fill-current" : ""}`}
+                        />
                       </Button>
                       {tweet.userId === user?.id && (
-                        <AlertDialog
-                          open={deletingTweetId === tweet.id}
-                          onOpenChange={(open) =>
-                            setDeletingTweetId(open ? tweet.id : null)
-                          }
-                        >
-                          <AlertDialogTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="hover:text-red-500 gap-1.5"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent size="sm">
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Delete tweet?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                This action cannot be undone.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction
-                                variant="destructive"
-                                onClick={() => handleDeleteTweet(tweet.id)}
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="hover:text-blue-500 gap-1.5"
+                            onClick={() => {
+                              setEditingTweetId(tweet.id);
+                              setEditTweetContent(tweet.content);
+                            }}
+                          >
+                            <Edit3 className="h-4 w-4" />
+                          </Button>
+                          <AlertDialog
+                            open={deletingTweetId === tweet.id}
+                            onOpenChange={(open) =>
+                              setDeletingTweetId(open ? tweet.id : null)
+                            }
+                          >
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="hover:text-red-500 gap-1.5"
                               >
-                                Delete
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent size="sm">
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>
+                                  Delete tweet?
+                                </AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  This action cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  variant="destructive"
+                                  onClick={() => handleDeleteTweet(tweet.id)}
+                                >
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </>
                       )}
                     </div>
                   </div>

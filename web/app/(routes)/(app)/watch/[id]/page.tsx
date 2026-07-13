@@ -13,17 +13,36 @@ import {
   ThumbsUp,
   ThumbsDown,
   Bell,
+  Trash2,
+  Edit3,
+  Check,
+  X,
+  Plus,
+  ListVideo,
 } from "lucide-react";
 import {
   videoAPI,
   commentAPI,
   likeAPI,
   subscriptionAPI,
+  playlistAPI,
   type Video,
   type Comment,
+  type Playlist,
 } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import Link from "next/link";
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from "@/components/ui/alert-dialog";
 
 export default function WatchPage() {
   const params = useParams();
@@ -37,6 +56,14 @@ export default function WatchPage() {
   const [likeCount, setLikeCount] = useState(0);
   const [commentCount, setCommentCount] = useState(0);
   const [viewCount, setViewCount] = useState(0);
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editCommentContent, setEditCommentContent] = useState("");
+  const [deletingCommentId, setDeletingCommentId] = useState<string | null>(
+    null,
+  );
+  const [commentLikes, setCommentLikes] = useState<Record<string, boolean>>({});
+  const [showAddToPlaylist, setShowAddToPlaylist] = useState(false);
+  const [userPlaylists, setUserPlaylists] = useState<Playlist[]>([]);
 
   const videoId = params.id as string;
 
@@ -122,6 +149,70 @@ export default function WatchPage() {
       }
     } catch (error) {
       console.error("Error toggling subscription:", error);
+    }
+  };
+
+  const handleUpdateComment = async (commentId: string) => {
+    if (!editCommentContent.trim()) return;
+    try {
+      const response = await commentAPI.update!(commentId, {
+        content: editCommentContent,
+      });
+      if (response.data.success) {
+        setEditingCommentId(null);
+        setEditCommentContent("");
+        fetchComments();
+      }
+    } catch (error) {
+      console.error("Error updating comment:", error);
+    }
+  };
+
+  const handleDeleteComment = async (commentId: string) => {
+    try {
+      const response = await commentAPI.delete!(commentId);
+      if (response.data.success) {
+        fetchComments();
+      }
+    } catch (error) {
+      console.error("Error deleting comment:", error);
+    } finally {
+      setDeletingCommentId(null);
+    }
+  };
+
+  const handleCommentLike = async (commentId: string) => {
+    try {
+      const response = await likeAPI.toggleComment!(commentId);
+      if (response.data.success) {
+        setCommentLikes((prev) => ({
+          ...prev,
+          [commentId]: response.data.data?.liked ?? !prev[commentId],
+        }));
+      }
+    } catch (error) {
+      console.error("Error liking comment:", error);
+    }
+  };
+
+  const handleAddToPlaylist = async (playlistId: string, videoId: string) => {
+    try {
+      await playlistAPI.addVideo!(playlistId, videoId);
+      setShowAddToPlaylist(false);
+    } catch (error) {
+      console.error("Error adding to playlist:", error);
+    }
+  };
+
+  const fetchPlaylists = async () => {
+    if (!user?.id) return;
+    try {
+      const response = await playlistAPI.getByUser(user.id);
+      if (response.data.success && response.data.data) {
+        setUserPlaylists(response.data.data.playlists);
+      }
+    } catch (error) {
+      console.error("Error fetching playlists:", error);
     }
   };
 
@@ -212,6 +303,16 @@ export default function WatchPage() {
                 <Button variant="secondary">
                   <ThumbsDown className="h-4 w-4" />
                 </Button>
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setShowAddToPlaylist(true);
+                    fetchPlaylists();
+                  }}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Save
+                </Button>
                 <Button variant="secondary">
                   <Share2 className="h-4 w-4 mr-2" />
                   Share
@@ -288,10 +389,48 @@ export default function WatchPage() {
                         {new Date(comment.createdAt).toLocaleDateString()}
                       </span>
                     </div>
-                    <p className="text-foreground mb-2">{comment.content}</p>
+
+                    {editingCommentId === comment.id ? (
+                      <div className="space-y-2 mb-2">
+                        <Input
+                          value={editCommentContent}
+                          onChange={(e) =>
+                            setEditCommentContent(e.target.value)
+                          }
+                          className="bg-muted"
+                        />
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            onClick={() => handleUpdateComment(comment.id)}
+                          >
+                            <Check className="h-4 w-4 mr-1" /> Save
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setEditingCommentId(null)}
+                          >
+                            <X className="h-4 w-4 mr-1" /> Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-foreground mb-2">{comment.content}</p>
+                    )}
+
                     <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                      <Button variant="ghost" size="sm">
-                        <ThumbsUp className="h-4 w-4 mr-1" />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleCommentLike(comment.id)}
+                        className={
+                          commentLikes[comment.id] ? "text-primary" : ""
+                        }
+                      >
+                        <Heart
+                          className={`h-4 w-4 mr-1 ${commentLikes[comment.id] ? "fill-current" : ""}`}
+                        />
                         Like
                       </Button>
                       <Button variant="ghost" size="sm">
@@ -300,6 +439,58 @@ export default function WatchPage() {
                       <Button variant="ghost" size="sm">
                         Reply
                       </Button>
+                      {comment.userId === user?.id &&
+                        editingCommentId !== comment.id && (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setEditingCommentId(comment.id);
+                                setEditCommentContent(comment.content);
+                              }}
+                            >
+                              <Edit3 className="h-4 w-4" />
+                            </Button>
+                            <AlertDialog
+                              open={deletingCommentId === comment.id}
+                              onOpenChange={(open) =>
+                                setDeletingCommentId(open ? comment.id : null)
+                              }
+                            >
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="hover:text-red-500"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent size="sm">
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>
+                                    Delete comment?
+                                  </AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    This action cannot be undone.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    variant="destructive"
+                                    onClick={() =>
+                                      handleDeleteComment(comment.id)
+                                    }
+                                  >
+                                    Delete
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </>
+                        )}
                     </div>
 
                     {comment.replies && comment.replies.length > 0 && (
@@ -360,6 +551,49 @@ export default function WatchPage() {
           </Card>
         </div>
       </div>
+
+      {showAddToPlaylist && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-md shadow-lg">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold">Save to Playlist</h2>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowAddToPlaylist(false)}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+              {userPlaylists.length === 0 ? (
+                <p className="text-muted-foreground text-center py-8">
+                  No playlists yet
+                </p>
+              ) : (
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {userPlaylists.map((playlist) => (
+                    <button
+                      key={playlist.id}
+                      onClick={() => handleAddToPlaylist(playlist.id, videoId)}
+                      className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-muted transition-colors text-left"
+                    >
+                      <ListVideo className="h-5 w-5 text-muted-foreground shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium truncate">{playlist.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {playlist.videos?.length || 0} videos
+                        </p>
+                      </div>
+                      <Plus className="h-4 w-4 text-muted-foreground shrink-0" />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

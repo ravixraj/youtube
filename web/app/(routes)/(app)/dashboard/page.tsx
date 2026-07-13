@@ -13,7 +13,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Spinner } from "@/components/ui/spinner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -52,6 +51,14 @@ export default function DashboardPage() {
   const [newPassword, setNewPassword] = useState("");
   const [passwordMsg, setPasswordMsg] = useState("");
 
+  // ── Account ──
+  const [accountForm, setAccountForm] = useState({
+    fullname: "",
+    email: "",
+    username: "",
+  });
+  const [accountMsg, setAccountMsg] = useState("");
+
   // ── Avatar / Cover ──
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [coverFile, setCoverFile] = useState<File | null>(null);
@@ -81,6 +88,13 @@ export default function DashboardPage() {
       console.error("Failed to load dashboard", err);
     } finally {
       setLoading(false);
+    }
+    if (user) {
+      setAccountForm({
+        fullname: user.fullname,
+        email: user.email,
+        username: user.username,
+      });
     }
   };
 
@@ -134,6 +148,20 @@ export default function DashboardPage() {
       }
     } catch (err) {
       console.error("Failed to toggle publish", err);
+    }
+  };
+
+  // ── Update Account ──
+  const handleUpdateAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAccountMsg("");
+    try {
+      const res = await userAPI.updateAccount(accountForm);
+      if (res.data.success) {
+        setAccountMsg("Account updated successfully");
+      }
+    } catch (err: any) {
+      setAccountMsg(err?.response?.data?.message || "Failed to update account");
     }
   };
 
@@ -448,6 +476,63 @@ export default function DashboardPage() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
+                <Settings className="h-5 w-5" /> Account
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleUpdateAccount} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="fullname">Full Name</Label>
+                  <Input
+                    id="fullname"
+                    value={accountForm.fullname}
+                    onChange={(e) =>
+                      setAccountForm({
+                        ...accountForm,
+                        fullname: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={accountForm.email}
+                    onChange={(e) =>
+                      setAccountForm({ ...accountForm, email: e.target.value })
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="username">Username</Label>
+                  <Input
+                    id="username"
+                    value={accountForm.username}
+                    onChange={(e) =>
+                      setAccountForm({
+                        ...accountForm,
+                        username: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+                <Button type="submit">Update Account</Button>
+                {accountMsg && (
+                  <p
+                    className={`text-sm ${accountMsg.includes("successfully") ? "text-green-500" : "text-red-500"}`}
+                  >
+                    {accountMsg}
+                  </p>
+                )}
+              </form>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
                 <Lock className="h-5 w-5" /> Change Password
               </CardTitle>
             </CardHeader>
@@ -480,11 +565,10 @@ export default function DashboardPage() {
                 <Button type="submit">Update Password</Button>
                 {passwordMsg && (
                   <p
-                    className={`text-sm ${
-                      passwordMsg.includes("successfully")
+                    className={`text-sm ${passwordMsg.includes("successfully")
                         ? "text-green-500"
                         : "text-red-500"
-                    }`}
+                      }`}
                   >
                     {passwordMsg}
                   </p>
