@@ -133,16 +133,19 @@ like.get('/videos', async c => {
   const db = database(c.env.DATABASE_URL)
 
   const likedVideos = await db.query.likes.findMany({
-    where: {
-      userId,
-    },
+    where: eq(likes.userId, userId),
   })
 
   if (!likedVideos) {
     throw HTTP.Error(HttpStatus.NOT_FOUND, 'Liked videos not found')
   }
 
-  return c.json(HTTP.Response(HttpPhrase.OK, { likedVideos }), HttpStatus.OK)
+  return c.json(
+    HTTP.Response(HttpPhrase.OK, {
+      likedVideos: likedVideos.filter(v => v.videoId),
+    }),
+    HttpStatus.OK
+  )
 })
 
 export default like
