@@ -62,6 +62,9 @@ export default function WatchPage() {
     null,
   );
   const [commentLikes, setCommentLikes] = useState<Record<string, boolean>>({});
+  const [commentLikeCounts, setCommentLikeCounts] = useState<
+    Record<string, number>
+  >({});
   const [showAddToPlaylist, setShowAddToPlaylist] = useState(false);
   const [userPlaylists, setUserPlaylists] = useState<Playlist[]>([]);
   const [playlistFeedback, setPlaylistFeedback] = useState<string | null>(null);
@@ -186,9 +189,11 @@ export default function WatchPage() {
     try {
       const response = await likeAPI.toggleComment!(commentId);
       if (response.data.success) {
-        setCommentLikes((prev) => ({
+        const liked = response.data.data?.liked ?? !commentLikes[commentId];
+        setCommentLikes((prev) => ({ ...prev, [commentId]: liked }));
+        setCommentLikeCounts((prev) => ({
           ...prev,
-          [commentId]: response.data.data?.liked ?? !prev[commentId],
+          [commentId]: (prev[commentId] || 0) + (liked ? 1 : -1),
         }));
       }
     } catch (error) {
@@ -440,7 +445,7 @@ export default function WatchPage() {
                         <Heart
                           className={`h-4 w-4 mr-1 ${commentLikes[comment.id] ? "fill-current" : ""}`}
                         />
-                        Like
+                        {commentLikeCounts[comment.id] || 0}
                       </Button>
                       <Button variant="ghost" size="sm">
                         <ThumbsDown className="h-4 w-4" />

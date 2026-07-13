@@ -31,6 +31,9 @@ export default function TweetsPage() {
   const [editingTweetId, setEditingTweetId] = useState<string | null>(null);
   const [editTweetContent, setEditTweetContent] = useState("");
   const [tweetLikes, setTweetLikes] = useState<Record<string, boolean>>({});
+  const [tweetLikeCounts, setTweetLikeCounts] = useState<
+    Record<string, number>
+  >({});
 
   useEffect(() => {
     if (user?.id) {
@@ -93,9 +96,11 @@ export default function TweetsPage() {
     try {
       const response = await likeAPI.toggleTweet(tweetId);
       if (response.data.success) {
-        setTweetLikes((prev) => ({
+        const liked = response.data.data?.liked ?? !tweetLikes[tweetId];
+        setTweetLikes((prev) => ({ ...prev, [tweetId]: liked }));
+        setTweetLikeCounts((prev) => ({
           ...prev,
-          [tweetId]: response.data.data?.liked ?? !prev[tweetId],
+          [tweetId]: (prev[tweetId] || 0) + (liked ? 1 : -1),
         }));
       }
     } catch (error) {
@@ -261,6 +266,7 @@ export default function TweetsPage() {
                         <Heart
                           className={`h-4 w-4 ${tweetLikes[tweet.id] ? "fill-current" : ""}`}
                         />
+                        {tweetLikeCounts[tweet.id] || 0}
                       </Button>
                       {tweet.userId === user?.id && (
                         <>

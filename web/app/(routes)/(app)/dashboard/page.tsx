@@ -99,7 +99,8 @@ export default function DashboardPage() {
         setSubscribedChannels(subsRes.data.data.channels);
       }
       if (likedRes.data.success && likedRes.data.data) {
-        setLikedVideos(likedRes.data.data.likedVideos as Video[]);
+        const likes = likedRes.data.data.likedVideos as any[];
+        setLikedVideos(likes.filter((l: any) => l.videoId));
       }
     } catch (err) {
       console.error("Failed to load dashboard", err);
@@ -552,30 +553,28 @@ export default function DashboardPage() {
                 </p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {likedVideos.map((video) => (
+              <div className="space-y-3 max-w-2xl">
+                {likedVideos.map((like: any) => (
                   <Card
-                    key={video.id}
-                    className="group cursor-pointer overflow-hidden"
-                    onClick={() => router.push(`/watch/${video.id}`)}
+                    key={like.id}
+                    className="group cursor-pointer"
+                    onClick={() => router.push(`/watch/${like.videoId}`)}
                   >
-                    <div className="relative w-full pt-[56.25%]">
-                      <img
-                        src={video.thumbnail || "/placeholder-video.jpg"}
-                        alt={video.title}
-                        className="absolute inset-0 h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        <Play className="h-12 w-12 text-white" />
+                    <CardContent className="flex items-center gap-4 pt-6">
+                      <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                        <Heart className="h-5 w-5" />
                       </div>
-                    </div>
-                    <CardContent className="p-3">
-                      <h3 className="font-semibold text-sm line-clamp-2">
-                        {video.title}
-                      </h3>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {video.viewCount} views
-                      </p>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-foreground">
+                          Liked video
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {like.videoId}
+                        </p>
+                      </div>
+                      <Button variant="ghost" size="sm" asChild>
+                        <Link href={`/watch/${like.videoId}`}>Watch</Link>
+                      </Button>
                     </CardContent>
                   </Card>
                 ))}

@@ -59,6 +59,9 @@ export default function ProfilePage() {
   const [editingTweetId, setEditingTweetId] = useState<string | null>(null);
   const [editTweetContent, setEditTweetContent] = useState("");
   const [tweetLikes, setTweetLikes] = useState<Record<string, boolean>>({});
+  const [tweetLikeCounts, setTweetLikeCounts] = useState<
+    Record<string, number>
+  >({});
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [showSubscribers, setShowSubscribers] = useState(false);
   const [subscribers, setSubscribers] = useState<any[]>([]);
@@ -140,9 +143,11 @@ export default function ProfilePage() {
     try {
       const response = await likeAPI.toggleTweet(tweetId);
       if (response.data.success) {
-        setTweetLikes((prev) => ({
+        const liked = response.data.data?.liked ?? !tweetLikes[tweetId];
+        setTweetLikes((prev) => ({ ...prev, [tweetId]: liked }));
+        setTweetLikeCounts((prev) => ({
           ...prev,
-          [tweetId]: response.data.data?.liked ?? !prev[tweetId],
+          [tweetId]: (prev[tweetId] || 0) + (liked ? 1 : -1),
         }));
       }
     } catch (error) {
@@ -406,6 +411,7 @@ export default function ProfilePage() {
                             <Heart
                               className={`h-4 w-4 mr-1 ${tweetLikes[tweet.id] ? "fill-current" : ""}`}
                             />
+                            {tweetLikeCounts[tweet.id] || 0}
                           </Button>
                           {tweet.userId === user?.id && (
                             <>
