@@ -11,7 +11,7 @@
 <p align="center">
   <a href="README.md">
     <img
-      src="https://go-skill-icons.vercel.app/api/icons?i=typescript,pnpm,biome,hono,postgresql,prisma,neon,jwt,cloudflare,nextjs,tailwind,zustand" alt="tech stack"
+      src="https://go-skill-icons.vercel.app/api/icons?i=typescript,pnpm,biome,react,nextjs,tailwind,hono,postgresql,prisma,neon,jwt,cloudflare" alt="tech stack"
     />
   </a>
 </p>
@@ -28,9 +28,9 @@ cd youtube
 
 ```bash
 cd server
-pnpm install
+bun install
 cp .env.example .env
-pnpm dev
+bun dev
 ```
 
 ### web
