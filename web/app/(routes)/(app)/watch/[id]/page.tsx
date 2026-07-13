@@ -126,15 +126,11 @@ export default function WatchPage() {
 
   const handleLike = async () => {
     try {
-      if (isLiked) {
-        setIsLiked(false);
-        setLikeCount((prev) => Math.max(0, prev - 1));
-      } else {
-        const response = await likeAPI.toggleVideo(videoId);
-        if (response.data.success) {
-          setIsLiked(true);
-          setLikeCount((prev) => prev + 1);
-        }
+      const response = await likeAPI.toggleVideo(videoId);
+      if (response.data.success) {
+        const liked = response.data.data?.liked ?? !isLiked;
+        setIsLiked(liked);
+        setLikeCount((prev) => Math.max(0, prev + (liked ? 1 : -1)));
       }
     } catch (error) {
       console.error("Error toggling like:", error);
@@ -193,7 +189,7 @@ export default function WatchPage() {
         setCommentLikes((prev) => ({ ...prev, [commentId]: liked }));
         setCommentLikeCounts((prev) => ({
           ...prev,
-          [commentId]: (prev[commentId] || 0) + (liked ? 1 : -1),
+          [commentId]: Math.max(0, (prev[commentId] || 0) + (liked ? 1 : -1)),
         }));
       }
     } catch (error) {

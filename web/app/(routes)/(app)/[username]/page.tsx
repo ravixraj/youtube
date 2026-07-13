@@ -147,7 +147,7 @@ export default function ProfilePage() {
         setTweetLikes((prev) => ({ ...prev, [tweetId]: liked }));
         setTweetLikeCounts((prev) => ({
           ...prev,
-          [tweetId]: (prev[tweetId] || 0) + (liked ? 1 : -1),
+          [tweetId]: Math.max(0, (prev[tweetId] || 0) + (liked ? 1 : -1)),
         }));
       }
     } catch (error) {
