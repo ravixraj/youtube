@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import {
   dashboardAPI,
@@ -9,6 +10,7 @@ import {
   userAPI,
   authAPI,
   subscriptionAPI,
+  likeAPI,
   type Video,
 } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -33,10 +35,13 @@ import {
   ListVideo,
   Bell,
   UserPlus,
+  Heart,
+  Play,
 } from "lucide-react";
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const router = useRouter();
 
   const [stats, setStats] = useState<{
     totalVideos: number;
@@ -69,6 +74,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
 
   const [subscribedChannels, setSubscribedChannels] = useState<any[]>([]);
+  const [likedVideos, setLikedVideos] = useState<Video[]>([]);
 
   useEffect(() => {
     fetchData();
@@ -77,10 +83,11 @@ export default function DashboardPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [statsRes, videosRes, subsRes] = await Promise.all([
+      const [statsRes, videosRes, subsRes, likedRes] = await Promise.all([
         dashboardAPI.getStats(),
         dashboardAPI.getVideos(),
         subscriptionAPI.getSubscribedChannels(),
+        likeAPI.getLikedVideos(),
       ]);
       if (statsRes.data.data?.channelStats) {
         setStats(statsRes.data.data.channelStats);
@@ -90,6 +97,9 @@ export default function DashboardPage() {
       }
       if (subsRes.data.success && subsRes.data.data) {
         setSubscribedChannels(subsRes.data.data.channels);
+      }
+      if (likedRes.data.success && likedRes.data.data) {
+        setLikedVideos(likedRes.data.data.likedVideos as Video[]);
       }
     } catch (err) {
       console.error("Failed to load dashboard", err);
@@ -236,6 +246,12 @@ export default function DashboardPage() {
       label: "Videos",
       icon: VideoIcon,
       count: videos.length,
+    },
+    {
+      id: "liked",
+      label: "Liked",
+      icon: Heart,
+      count: likedVideos.length,
     },
     {
       id: "subscriptions",
@@ -515,6 +531,51 @@ export default function DashboardPage() {
                           </>
                         )}
                       </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === "liked" && (
+          <div>
+            {likedVideos.length === 0 ? (
+              <div className="flex flex-col items-center py-16 text-center">
+                <Heart className="w-16 h-16 text-muted-foreground mb-4" />
+                <h2 className="text-lg font-semibold text-foreground mb-1">
+                  No liked videos yet
+                </h2>
+                <p className="text-muted-foreground">
+                  Videos you like will appear here
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {likedVideos.map((video) => (
+                  <Card
+                    key={video.id}
+                    className="group cursor-pointer overflow-hidden"
+                    onClick={() => router.push(`/watch/${video.id}`)}
+                  >
+                    <div className="relative w-full pt-[56.25%]">
+                      <img
+                        src={video.thumbnail || "/placeholder-video.jpg"}
+                        alt={video.title}
+                        className="absolute inset-0 h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <Play className="h-12 w-12 text-white" />
+                      </div>
+                    </div>
+                    <CardContent className="p-3">
+                      <h3 className="font-semibold text-sm line-clamp-2">
+                        {video.title}
+                      </h3>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {video.viewCount} views
+                      </p>
                     </CardContent>
                   </Card>
                 ))}
