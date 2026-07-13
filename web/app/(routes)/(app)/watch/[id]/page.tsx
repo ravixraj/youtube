@@ -64,6 +64,7 @@ export default function WatchPage() {
   const [commentLikes, setCommentLikes] = useState<Record<string, boolean>>({});
   const [showAddToPlaylist, setShowAddToPlaylist] = useState(false);
   const [userPlaylists, setUserPlaylists] = useState<Playlist[]>([]);
+  const [playlistFeedback, setPlaylistFeedback] = useState<string | null>(null);
 
   const videoId = params.id as string;
 
@@ -195,10 +196,18 @@ export default function WatchPage() {
     }
   };
 
-  const handleAddToPlaylist = async (playlistId: string, videoId: string) => {
+  const handleAddToPlaylist = async (
+    playlistId: string,
+    videoId: string,
+    playlistName: string,
+  ) => {
     try {
-      await playlistAPI.addVideo!(playlistId, videoId);
-      setShowAddToPlaylist(false);
+      const res = await playlistAPI.addVideo!(playlistId, videoId);
+      if (res.data.success) {
+        setShowAddToPlaylist(false);
+        setPlaylistFeedback(`Added to "${playlistName}"`);
+        setTimeout(() => setPlaylistFeedback(null), 2500);
+      }
     } catch (error) {
       console.error("Error adding to playlist:", error);
     }
@@ -552,6 +561,12 @@ export default function WatchPage() {
         </div>
       </div>
 
+      {playlistFeedback && (
+        <div className="fixed bottom-6 right-6 z-50 bg-foreground text-background px-4 py-2 rounded-lg shadow-lg text-sm font-medium animate-in fade-in slide-in-from-bottom-2">
+          {playlistFeedback}
+        </div>
+      )}
+
       {showAddToPlaylist && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <Card className="w-full max-w-md shadow-lg">
@@ -575,7 +590,9 @@ export default function WatchPage() {
                   {userPlaylists.map((playlist) => (
                     <button
                       key={playlist.id}
-                      onClick={() => handleAddToPlaylist(playlist.id, videoId)}
+                      onClick={() =>
+                        handleAddToPlaylist(playlist.id, videoId, playlist.name)
+                      }
                       className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-muted transition-colors text-left"
                     >
                       <ListVideo className="h-5 w-5 text-muted-foreground shrink-0" />

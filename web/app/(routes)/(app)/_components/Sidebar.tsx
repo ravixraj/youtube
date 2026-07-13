@@ -10,8 +10,6 @@ import {
   MessageSquare,
   X,
   LayoutDashboard,
-  Heart,
-  Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -32,13 +30,6 @@ const navItems = [
   },
   { name: "Playlist", path: "/playlist", icon: ListVideo, mobileView: true },
   { name: "Tweets", path: "/tweets", icon: MessageSquare, mobileView: true },
-  { name: "Liked Videos", path: "/liked", icon: Heart, mobileView: false },
-  {
-    name: "Subscriptions",
-    path: "/subscriptions",
-    icon: Users,
-    mobileView: false,
-  },
   { name: "Upload", path: "/upload", icon: Upload, mobileView: false },
 ];
 

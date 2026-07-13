@@ -31,8 +31,12 @@ export default function PlaylistsPage() {
   }, []);
 
   const fetchPlaylists = async () => {
+    if (!user?.id) {
+      setLoading(false);
+      return;
+    }
     try {
-      const response = await playlistAPI.getByUser(user?.id || "");
+      const response = await playlistAPI.getByUser(user.id);
       if (response.data.success && response.data.data) {
         setPlaylists(response.data.data.playlists);
       }
