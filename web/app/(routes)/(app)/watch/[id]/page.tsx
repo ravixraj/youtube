@@ -139,13 +139,10 @@ export default function WatchPage() {
 
   const handleSubscribe = async () => {
     try {
-      if (isSubscribed) {
-        setIsSubscribed(false);
-      } else if (video?.userId) {
-        const response = await subscriptionAPI.toggle(video.userId);
-        if (response.data.success) {
-          setIsSubscribed(true);
-        }
+      if (!video?.userId) return;
+      const response = await subscriptionAPI.toggle(video.userId);
+      if (response.data.success) {
+        setIsSubscribed(response.data.data?.subscribed ?? !isSubscribed);
       }
     } catch (error) {
       console.error("Error toggling subscription:", error);

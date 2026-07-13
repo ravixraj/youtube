@@ -195,8 +195,10 @@ export default function ProfilePage() {
 
   const handleSubscribe = async () => {
     try {
-      if (isSubscribed) {
-        setIsSubscribed(false);
+      if (!channel?.id) return;
+      const response = await subscriptionAPI.toggle(channel.id);
+      if (response.data.success) {
+        setIsSubscribed(response.data.data?.subscribed ?? !isSubscribed);
       }
     } catch (error) {
       console.error("Error toggling subscription:", error);
