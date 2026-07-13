@@ -600,7 +600,7 @@ export default function DashboardPage() {
                 {subscribedChannels.map((item: any, i: number) => (
                   <Card key={i}>
                     <CardContent className="flex items-center gap-4 pt-6">
-                      <Link href={`/@${item.channel.username}`}>
+                      <Link href={`/${item.channel.username}`}>
                         <Avatar className="w-14 h-14">
                           <AvatarImage
                             src={item.channel.avatar}
@@ -613,7 +613,7 @@ export default function DashboardPage() {
                       </Link>
                       <div className="flex-1 min-w-0">
                         <Link
-                          href={`/@${item.channel.username}`}
+                          href={`/${item.channel.username}`}
                           className="font-semibold text-foreground hover:text-primary transition-colors"
                         >
                           {item.channel.fullname}
