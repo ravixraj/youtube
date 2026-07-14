@@ -28,7 +28,7 @@ export const searchVideosSchema = z.object({
 const createVideoSchema = z.object({
   title: z.string().min(1, 'Title is required').max(60, 'Title too long'),
   description: z.string().max(160, 'Description too long'),
-  isPublished: z.boolean().default(true),
+  isPublished: z.coerce.boolean().default(true),
   videoFile: z
     .instanceof(File)
     .refine(file => file.size > 0, 'Video file is required'),
