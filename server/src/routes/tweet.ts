@@ -4,8 +4,8 @@ import { HTTP, HttpPhrase, HttpStatus } from '@/lib/http'
 import { zValidator } from '@/lib/zValidator'
 import { authMiddleware } from '@/middlewares/auth'
 import { db as database } from '@/db'
-import { tweets } from '@/db/schema'
-import { and, eq } from 'drizzle-orm'
+import { subscriptions, tweets, users } from '@/db/schema'
+import { and, desc, eq, inArray } from 'drizzle-orm'
 
 const tweetIdParam = z.object({ tweetId: z.uuid('Invalid tweet ID') })
 
@@ -61,6 +61,55 @@ tweet.get('/user/:userId', zValidator('param', userIdParam), async c => {
 })
 
 tweet.use('/*', authMiddleware)
+tweet.get('/feed', async c => {
+  const userId = c.get('user')
+  const db = database(c.env.DATABASE_URL)
+
+  const subscribedChannels = await db
+    .select({ channelId: subscriptions.channelId })
+    .from(subscriptions)
+    .where(eq(subscriptions.subscriberId, userId))
+
+  const channelIds = [
+    userId,
+    ...subscribedChannels.map(s => s.channelId),
+  ]
+  const uniqueChannelIds = [...new Set(channelIds)]
+
+  const raw = await db
+    .select({
+      id: tweets.id,
+      userId: tweets.userId,
+      content: tweets.content,
+      createdAt: tweets.createdAt,
+      updatedAt: tweets.updatedAt,
+      username: users.username,
+      fullname: users.fullname,
+      avatar: users.avatar,
+    })
+    .from(tweets)
+    .innerJoin(users, eq(tweets.userId, users.id))
+    .where(inArray(tweets.userId, uniqueChannelIds))
+    .orderBy(desc(tweets.createdAt))
+    .limit(50)
+
+  const feed = raw.map(t => ({
+    id: t.id,
+    userId: t.userId,
+    content: t.content,
+    createdAt: t.createdAt,
+    updatedAt: t.updatedAt,
+    user: {
+      id: t.userId,
+      username: t.username,
+      fullname: t.fullname,
+      avatar: t.avatar,
+    },
+  }))
+
+  return c.json(HTTP.Response(HttpPhrase.OK, { tweets: feed }), HttpStatus.OK)
+})
+
 tweet.post('/', zValidator('json', createTweetSchema), async c => {
   const userId = c.get('user')
   const { content } = c.req.valid('json')
