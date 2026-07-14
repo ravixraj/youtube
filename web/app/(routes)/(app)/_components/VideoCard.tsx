@@ -65,37 +65,49 @@ const VideoCard = ({ video, onClick }: VideoCardProps) => {
       </div>
 
       <CardContent className="flex gap-3 p-3">
-        <Link
-          href={`/${video.owner?.username}`}
-          onClick={(e) => e.stopPropagation()}
-          className="shrink-0"
-        >
-          <div className="h-9 w-9 rounded-full overflow-hidden bg-muted">
-            {video.owner?.avatar ? (
-              <img
-                src={video.owner.avatar}
-                alt={video.owner.username}
-                className="h-full w-full object-cover"
-              />
-            ) : (
-              <div className="h-full w-full flex items-center justify-center bg-primary text-primary-foreground font-medium">
-                {video.owner?.username?.charAt(0).toUpperCase() || "?"}
-              </div>
-            )}
+        {video.owner?.username ? (
+          <Link
+            href={`/${video.owner.username}`}
+            onClick={(e) => e.stopPropagation()}
+            className="shrink-0"
+          >
+            <div className="h-9 w-9 rounded-full overflow-hidden bg-muted">
+              {video.owner?.avatar ? (
+                <img
+                  src={video.owner.avatar}
+                  alt={video.owner.username}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <div className="h-full w-full flex items-center justify-center bg-primary text-primary-foreground font-medium">
+                  {video.owner?.username?.charAt(0).toUpperCase() || "?"}
+                </div>
+              )}
+            </div>
+          </Link>
+        ) : (
+          <div className="h-9 w-9 rounded-full overflow-hidden shrink-0 bg-muted flex items-center justify-center">
+            <span className="text-sm font-medium">?</span>
           </div>
-        </Link>
+        )}
 
         <div className="flex-1 min-w-0">
           <h3 className="font-semibold text-foreground line-clamp-2 text-sm leading-snug group-hover:text-primary transition-colors">
             {video.title}
           </h3>
-          <Link
-            href={`/${video.owner?.username}`}
-            onClick={(e) => e.stopPropagation()}
-            className="text-muted-foreground text-sm hover:text-foreground transition-colors"
-          >
-            {video.owner?.fullname || video.owner?.username}
-          </Link>
+          {video.owner?.username ? (
+            <Link
+              href={`/${video.owner.username}`}
+              onClick={(e) => e.stopPropagation()}
+              className="text-muted-foreground text-sm hover:text-foreground transition-colors"
+            >
+              {video.owner?.fullname || video.owner?.username}
+            </Link>
+          ) : (
+            <span className="text-muted-foreground text-sm">
+              {video.owner?.fullname || "Unknown"}
+            </span>
+          )}
           <p className="text-muted-foreground text-xs mt-0.5">
             {formatViewCount(video.viewCount)} views ·{" "}
             {formatDate(video.createdAt)}

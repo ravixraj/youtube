@@ -261,24 +261,38 @@ export default function WatchPage() {
 
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-3">
-                <Link href={`/${video.owner?.username}`}>
+                {video.owner?.username ? (
+                  <Link href={`/${video.owner.username}`}>
+                    <Avatar className="h-10 w-10">
+                      <AvatarImage
+                        src={video.owner?.avatar}
+                        alt={video.owner?.username}
+                      />
+                      <AvatarFallback className="bg-primary text-primary-foreground">
+                        {video.owner?.username?.charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                  </Link>
+                ) : (
                   <Avatar className="h-10 w-10">
-                    <AvatarImage
-                      src={video.owner?.avatar}
-                      alt={video.owner?.username}
-                    />
                     <AvatarFallback className="bg-primary text-primary-foreground">
-                      {video.owner?.username?.charAt(0).toUpperCase()}
+                      ?
                     </AvatarFallback>
                   </Avatar>
-                </Link>
+                )}
                 <div>
-                  <Link
-                    href={`/${video.owner?.username}`}
-                    className="font-semibold text-foreground hover:text-primary transition-colors"
-                  >
-                    {video.owner?.fullname}
-                  </Link>
+                  {video.owner?.username ? (
+                    <Link
+                      href={`/${video.owner.username}`}
+                      className="font-semibold text-foreground hover:text-primary transition-colors"
+                    >
+                      {video.owner?.fullname}
+                    </Link>
+                  ) : (
+                    <span className="font-semibold text-foreground">
+                      {video.owner?.fullname || "Unknown"}
+                    </span>
+                  )}
                   <p className="text-sm text-muted-foreground">
                     {formatViewCount(viewCount)} views ·{" "}
                     {new Date(video.createdAt).toLocaleDateString()}

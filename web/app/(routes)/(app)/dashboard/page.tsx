@@ -309,35 +309,43 @@ export default function DashboardPage() {
             {user?.fullname}
           </h1>
           <p className="text-muted-foreground">@{user?.username}</p>
-          <p className="text-sm text-muted-foreground mt-1">
-            <span className="font-medium text-foreground">
-              {formatCount(stats?.totalVideos ?? 0)}
-            </span>{" "}
-            videos ·{" "}
-            <span className="font-medium text-foreground">
-              {formatCount(stats?.totalViews ?? 0)}
-            </span>{" "}
-            views ·{" "}
-            <span className="font-medium text-foreground">
-              {formatCount(stats?.subscriberCount ?? 0)}
-            </span>{" "}
-            subscribers
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1 flex flex-wrap gap-x-1">
+            <span>
+              <span className="font-medium text-foreground">
+                {formatCount(stats?.totalVideos ?? 0)}
+              </span>{" "}
+              videos
+            </span>
+            <span className="hidden xs:inline">·</span>
+            <span>
+              <span className="font-medium text-foreground">
+                {formatCount(stats?.totalViews ?? 0)}
+              </span>{" "}
+              views
+            </span>
+            <span>·</span>
+            <span>
+              <span className="font-medium text-foreground">
+                {formatCount(stats?.subscriberCount ?? 0)}
+              </span>{" "}
+              subscribers
+            </span>
           </p>
         </div>
       </div>
 
       <div className="border-b border-border mb-6">
-        <nav className="flex gap-6 overflow-x-auto">
+        <nav className="flex gap-2 sm:gap-6 overflow-x-auto pb-1">
           {tabs.map((tab) => (
             <Button
               key={tab.id}
               variant={activeTab === tab.id ? "default" : "ghost"}
               onClick={() => setActiveTab(tab.id)}
-              className="pb-3 px-1"
+              className="shrink-0 px-2 sm:px-3 text-xs sm:text-sm"
             >
-              <tab.icon className="h-4 w-4 mr-2" />
-              {tab.label}
-              {tab.count > 0 && ` (${tab.count})`}
+              <tab.icon className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">{tab.label}</span>
+              {tab.count > 0 && <span className="sm:ml-0"> ({tab.count})</span>}
             </Button>
           ))}
         </nav>
@@ -361,15 +369,15 @@ export default function DashboardPage() {
                 },
               ].map((item) => (
                 <Card key={item.label}>
-                  <CardContent className="flex items-center gap-4 py-5">
-                    <div className="p-3 rounded-xl bg-primary/10 text-primary">
-                      <item.icon className="h-6 w-6" />
+                  <CardContent className="flex items-center gap-3 sm:gap-4 py-4 sm:py-5">
+                    <div className="p-2 sm:p-3 rounded-xl bg-primary/10 text-primary">
+                      <item.icon className="h-5 w-5 sm:h-6 sm:w-6" />
                     </div>
                     <div>
-                      <p className="text-3xl font-bold text-foreground">
+                      <p className="text-2xl sm:text-3xl font-bold text-foreground">
                         {formatCount(item.value)}
                       </p>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-xs sm:text-sm text-muted-foreground">
                         {item.label}
                       </p>
                     </div>
@@ -500,33 +508,39 @@ export default function DashboardPage() {
                                 {new Date(video.createdAt).toLocaleDateString()}
                               </span>
                             </div>
-                            <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border">
+                            <div className="flex items-center gap-1 sm:gap-2 mt-3 pt-3 border-t border-border flex-wrap">
                               <Button
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => startEdit(video)}
+                                className="px-1.5 sm:px-3"
                               >
-                                <Edit3 className="h-4 w-4 mr-1" /> Edit
+                                <Edit3 className="h-4 w-4 sm:mr-1" />
+                                <span className="hidden sm:inline">Edit</span>
                               </Button>
                               <Button
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => togglePublish(video.id)}
+                                className="px-1.5 sm:px-3"
                               >
                                 {video.isPublished ? (
-                                  <ToggleLeft className="h-4 w-4 mr-1 text-amber-500" />
+                                  <ToggleLeft className="h-4 w-4 sm:mr-1 text-amber-500" />
                                 ) : (
-                                  <ToggleRight className="h-4 w-4 mr-1 text-green-500" />
+                                  <ToggleRight className="h-4 w-4 sm:mr-1 text-green-500" />
                                 )}
-                                {video.isPublished ? "Unpublish" : "Publish"}
+                                <span className="hidden sm:inline">
+                                  {video.isPublished ? "Unpublish" : "Publish"}
+                                </span>
                               </Button>
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="text-red-500 hover:text-red-600 hover:bg-red-500/10"
+                                className="text-red-500 hover:text-red-600 hover:bg-red-500/10 px-1.5 sm:px-3"
                                 onClick={() => deleteVideo(video.id)}
                               >
-                                <Trash2 className="h-4 w-4 mr-1" /> Delete
+                                <Trash2 className="h-4 w-4 sm:mr-1" />
+                                <span className="hidden sm:inline">Delete</span>
                               </Button>
                             </div>
                           </>
@@ -737,22 +751,23 @@ export default function DashboardPage() {
                 <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
                   <Camera className="h-5 w-5" /> Avatar
                 </h3>
-                <div className="flex items-center gap-4">
-                  <Avatar className="w-20 h-20">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                  <Avatar className="w-16 h-16 sm:w-20 sm:h-20 shrink-0">
                     <AvatarImage src={user?.avatar} alt="avatar" />
-                    <AvatarFallback className="bg-primary text-primary-foreground text-xl">
+                    <AvatarFallback className="bg-primary text-primary-foreground text-lg sm:text-xl">
                       {user?.username?.charAt(0).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
-                  <div className="flex-1 space-y-2">
+                  <div className="w-full sm:flex-1 space-y-2">
                     <Input
                       type="file"
                       accept="image/*"
+                      className="text-xs sm:text-sm"
                       onChange={(e) =>
                         setAvatarFile(e.target.files?.[0] || null)
                       }
                     />
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 flex-wrap">
                       <Button
                         size="sm"
                         onClick={handleUploadAvatar}
