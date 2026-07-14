@@ -4,9 +4,6 @@ const apiClient = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8787/api/v1",
   withCredentials: true,
   timeout: 120000,
-  headers: {
-    "Content-Type": "application/json",
-  },
 });
 
 apiClient.interceptors.request.use((config) => {

@@ -40,7 +40,7 @@ export default function UploadPage() {
       const data = new FormData();
       data.append("title", formData.title);
       data.append("description", formData.description);
-      data.append("isPublished", String(formData.isPublished));
+      data.append("isPublished", formData.isPublished ? "true" : "false");
       data.append("videoFile", videoFile);
       data.append("thumbnail", thumbnailFile);
 
