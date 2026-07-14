@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { tweetAPI, likeAPI, type Tweet } from "@/lib/api";
+import Link from "next/link";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -200,23 +201,31 @@ export default function TweetsPage() {
             <Card key={tweet.id}>
               <CardContent className="pt-6">
                 <div className="flex items-start gap-3">
-                  <Avatar className="w-10 h-10 shrink-0 mt-1">
-                    <AvatarImage
-                      src={tweet.user?.avatar}
-                      alt={tweet.user?.username}
-                    />
-                    <AvatarFallback>
-                      {tweet.user?.username?.charAt(0).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
+                  <Link href={`/${tweet.user?.username}`}>
+                    <Avatar className="w-10 h-10 shrink-0 mt-1">
+                      <AvatarImage
+                        src={tweet.user?.avatar}
+                        alt={tweet.user?.username}
+                      />
+                      <AvatarFallback>
+                        {tweet.user?.username?.charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                  </Link>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-semibold text-foreground">
+                      <Link
+                        href={`/${tweet.user?.username}`}
+                        className="font-semibold text-foreground hover:underline"
+                      >
                         {tweet.user?.fullname}
-                      </span>
-                      <span className="text-muted-foreground text-sm">
+                      </Link>
+                      <Link
+                        href={`/${tweet.user?.username}`}
+                        className="text-muted-foreground text-sm hover:underline"
+                      >
                         @{tweet.user?.username}
-                      </span>
+                      </Link>
                       <span className="text-muted-foreground text-sm">·</span>
                       <span className="text-muted-foreground text-sm whitespace-nowrap">
                         {new Date(tweet.createdAt).toLocaleDateString()}
@@ -246,7 +255,7 @@ export default function TweetsPage() {
                         </div>
                       </div>
                     ) : (
-                      <p className="mt-2 text-foreground whitespace-pre-wrap break-words">
+                      <p className="mt-2 text-foreground whitespace-pre-wrap wrap-break-word">
                         {tweet.content}
                       </p>
                     )}

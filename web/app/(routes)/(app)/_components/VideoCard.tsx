@@ -66,7 +66,7 @@ const VideoCard = ({ video, onClick }: VideoCardProps) => {
 
       <CardContent className="flex gap-3 p-3">
         <Link
-          href={`/@${video.owner?.username || "unknown"}`}
+          href={`/${video.owner?.username}`}
           onClick={(e) => e.stopPropagation()}
           className="shrink-0"
         >
@@ -90,11 +90,11 @@ const VideoCard = ({ video, onClick }: VideoCardProps) => {
             {video.title}
           </h3>
           <Link
-            href={`/@${video.owner?.username || "unknown"}`}
+            href={`/${video.owner?.username}`}
             onClick={(e) => e.stopPropagation()}
             className="text-muted-foreground text-sm hover:text-foreground transition-colors"
           >
-            {video.owner?.fullname || video.owner?.username || "Unknown"}
+            {video.owner?.fullname || video.owner?.username}
           </Link>
           <p className="text-muted-foreground text-xs mt-0.5">
             {formatViewCount(video.viewCount)} views ·{" "}

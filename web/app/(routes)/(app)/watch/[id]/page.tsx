@@ -9,9 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import {
   Heart,
   MessageSquare,
-  Share2,
   ThumbsUp,
-  ThumbsDown,
   Bell,
   Trash2,
   Edit3,
@@ -263,7 +261,7 @@ export default function WatchPage() {
 
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-3">
-                <Link href={`/@${video.owner?.username}`}>
+                <Link href={`/${video.owner?.username}`}>
                   <Avatar className="h-10 w-10">
                     <AvatarImage
                       src={video.owner?.avatar}
@@ -276,7 +274,7 @@ export default function WatchPage() {
                 </Link>
                 <div>
                   <Link
-                    href={`/@${video.owner?.username}`}
+                    href={`/${video.owner?.username}`}
                     className="font-semibold text-foreground hover:text-primary transition-colors"
                   >
                     {video.owner?.fullname}
@@ -307,9 +305,6 @@ export default function WatchPage() {
                   />
                   {formatViewCount(likeCount)}
                 </Button>
-                <Button variant="secondary">
-                  <ThumbsDown className="h-4 w-4" />
-                </Button>
                 <Button
                   variant="secondary"
                   onClick={() => {
@@ -319,10 +314,6 @@ export default function WatchPage() {
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   Save
-                </Button>
-                <Button variant="secondary">
-                  <Share2 className="h-4 w-4 mr-2" />
-                  Share
                 </Button>
               </div>
             </div>
@@ -440,12 +431,7 @@ export default function WatchPage() {
                         />
                         {commentLikeCounts[comment.id] || 0}
                       </Button>
-                      <Button variant="ghost" size="sm">
-                        <ThumbsDown className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm">
-                        Reply
-                      </Button>
+
                       {comment.userId === user?.id &&
                         editingCommentId !== comment.id && (
                           <>
