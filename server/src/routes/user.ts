@@ -212,11 +212,7 @@ user.post('/refresh-token', async c => {
   try {
     const body = await c.req.json()
     refreshToken = body.refreshToken
-  } catch { }
-
-  if (!refreshToken) {
-    refreshToken = getCookie(c, 'refresh_token')
-  }
+  } catch {}
 
   if (!refreshToken) {
     throw HTTP.Error(HttpStatus.UNAUTHORIZED, 'Refresh token required')

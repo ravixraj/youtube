@@ -133,7 +133,9 @@ like.get('/videos', async c => {
   const db = database(c.env.DATABASE_URL)
 
   const likedVideos = await db.query.likes.findMany({
-    where: eq(likes.userId, userId),
+    where: {
+      userId,
+    },
   })
 
   if (!likedVideos) {
