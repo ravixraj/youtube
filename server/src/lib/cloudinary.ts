@@ -17,7 +17,7 @@ export const uploadToCloudinary = async (
       body: form,
     })
 
-    const body = await res.json()
+    const body: any = await res.json()
 
     if (!res.ok) {
       throw HTTP.Error(
@@ -27,7 +27,10 @@ export const uploadToCloudinary = async (
     }
 
     return body
-  } catch (error) {
-    throw HTTP.Error(HttpStatus.BAD_REQUEST, 'Failed to upload on cloudinary')
+  } catch (error: any) {
+    throw HTTP.Error(
+      HttpStatus.BAD_REQUEST,
+      error.message ?? 'Failed to upload on Cloudinary'
+    )
   }
 }

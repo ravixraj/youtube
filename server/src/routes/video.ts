@@ -142,12 +142,9 @@ video.post('/', zValidator('form', createVideoSchema), async c => {
       title,
       description,
       isPublished,
-      // @ts-ignore
       videoFile: videoUpload?.url,
-      // @ts-ignore
       thumbnail: thumbnailUpload?.url,
-      // @ts-ignore
-      duration: videoUpload?.duration,
+      duration: Math.round(videoUpload.duration),
     })
     .returning({
       id: videos.id,
