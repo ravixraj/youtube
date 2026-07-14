@@ -45,11 +45,9 @@ export default function TweetsPage() {
 
   const fetchTweets = async () => {
     try {
-      if (user?.id) {
-        const response = await tweetAPI.getByUser(user.id);
-        if (response.data.success && response.data.data) {
-          setTweets(response.data.data.tweets);
-        }
+      const response = await tweetAPI.getFeed();
+      if (response.data.success && response.data.data) {
+        setTweets(response.data.data.tweets);
       }
     } catch (error) {
       console.error("Error fetching tweets:", error);
@@ -333,7 +331,7 @@ export default function TweetsPage() {
               No tweets yet
             </h2>
             <p className="text-muted-foreground">
-              Your tweets will appear here
+              Tweets from your subscribed channels will appear here
             </p>
           </div>
         )}

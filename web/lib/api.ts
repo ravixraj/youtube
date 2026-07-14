@@ -311,11 +311,15 @@ const deleteTweetApi = (tweetId: string) =>
 const getTweetsByUserApi = (userId: string) =>
   apiClient.get<ApiResponse<{ tweets: Tweet[] }>>(`/tweets/user/${userId}`);
 
+const getTweetFeedApi = () =>
+  apiClient.get<ApiResponse<{ tweets: Tweet[] }>>("/tweets/feed");
+
 export const tweetAPI = {
   create: createTweetApi,
   update: updateTweetApi,
   delete: deleteTweetApi,
   getByUser: getTweetsByUserApi,
+  getFeed: getTweetFeedApi,
 };
 
 // ─── Like API ─────────────────────────────────────────────────────────
