@@ -70,10 +70,7 @@ tweet.get('/feed', async c => {
     .from(subscriptions)
     .where(eq(subscriptions.subscriberId, userId))
 
-  const channelIds = [
-    userId,
-    ...subscribedChannels.map(s => s.channelId),
-  ]
+  const channelIds = [userId, ...subscribedChannels.map(s => s.channelId)]
   const uniqueChannelIds = [...new Set(channelIds)]
 
   const raw = await db

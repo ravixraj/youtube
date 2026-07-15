@@ -130,33 +130,17 @@ playlist.patch(
 
     const db = database(c.env.DATABASE_URL)
 
-    const [playlist] = await db
-      .select()
-      .from(playlists)
-      .where(and(eq(playlists.id, playlistId), eq(playlists.userId, userId)))
-      .limit(1)
-
-    if (!playlist) {
-      throw HTTP.Error(HttpStatus.NOT_FOUND, 'Playlist not found')
-    }
-
-    const [video] = await db
-      .select()
-      .from(videos)
-      .where(and(eq(videos.id, videoId), eq(videos.userId, userId)))
-      .limit(1)
-
-    if (!video) {
-      throw HTTP.Error(HttpStatus.NOT_FOUND, 'Video not found')
-    }
-
     const [existingPlaylist] = await db
       .select()
       .from(playlists)
       .where(and(eq(playlists.id, playlistId), eq(playlists.userId, userId)))
       .limit(1)
 
-    if (existingPlaylist) {
+    if (!existingPlaylist) {
+      throw HTTP.Error(HttpStatus.NOT_FOUND, 'Playlist not found')
+    }
+
+    if (existingPlaylist.videoId) {
       throw HTTP.Error(HttpStatus.CONFLICT, 'Video already added to playlist')
     }
 
@@ -185,29 +169,9 @@ playlist.patch(
   zValidator('param', addVideoParam),
   async c => {
     const userId = c.get('user')
-    const { playlistId, videoId } = c.req.valid('param')
+    const { playlistId } = c.req.valid('param')
 
     const db = database(c.env.DATABASE_URL)
-
-    const [playlist] = await db
-      .select()
-      .from(playlists)
-      .where(and(eq(playlists.id, playlistId), eq(playlists.userId, userId)))
-      .limit(1)
-
-    if (!playlist) {
-      throw HTTP.Error(HttpStatus.NOT_FOUND, 'Playlist not found')
-    }
-
-    const [video] = await db
-      .select()
-      .from(videos)
-      .where(and(eq(videos.id, videoId), eq(videos.userId, userId)))
-      .limit(1)
-
-    if (!video) {
-      throw HTTP.Error(HttpStatus.NOT_FOUND, 'Video not found')
-    }
 
     const [existingPlaylist] = await db
       .select()

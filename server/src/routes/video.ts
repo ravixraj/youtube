@@ -81,18 +81,32 @@ video.get('/', zValidator('query', searchVideosSchema), async c => {
     [sortBy]: sortOrder,
   }
 
-  const videos = await db.query.videos.findMany({
+  const result = await db.query.videos.findMany({
     where,
     orderBy,
     limit,
     offset: skip,
+    with: {
+      user: {
+        columns: {
+          id: true,
+          username: true,
+          fullname: true,
+          avatar: true,
+        },
+      },
+    },
   })
+
+  const videos = result.map(({ user, ...rest }) => ({
+    ...rest,
+    owner: user,
+  }))
 
   return c.json(HTTP.Response(HttpPhrase.OK, { videos }), HttpStatus.OK)
 })
 
 video.get('/:videoId', zValidator('param', videoIdParam), async c => {
-  const userId = c.get('user')
   const { videoId } = c.req.valid('param')
 
   const db = database(c.env.DATABASE_URL)
@@ -100,7 +114,16 @@ video.get('/:videoId', zValidator('param', videoIdParam), async c => {
   const video = await db.query.videos.findFirst({
     where: {
       id: videoId,
-      userId,
+    },
+    with: {
+      user: {
+        columns: {
+          id: true,
+          username: true,
+          fullname: true,
+          avatar: true,
+        },
+      },
     },
   })
 
@@ -108,7 +131,12 @@ video.get('/:videoId', zValidator('param', videoIdParam), async c => {
     throw HTTP.Error(HttpStatus.NOT_FOUND, 'Video does not exist')
   }
 
-  return c.json(HTTP.Response(HttpPhrase.OK, { video }), HttpStatus.OK)
+  const { user, ...rest } = video
+
+  return c.json(
+    HTTP.Response(HttpPhrase.OK, { video: { ...rest, owner: user } }),
+    HttpStatus.OK
+  )
 })
 
 video.use('/*', authMiddleware)
