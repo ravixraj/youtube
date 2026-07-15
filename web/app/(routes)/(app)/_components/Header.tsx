@@ -39,7 +39,7 @@ export default function Header({ onMenuToggle }: HeaderProps) {
   };
 
   return (
-    <header className="sticky inset-x-0 top-0 z-50 w-full border-b border-border px-4 bg-background">
+    <header className="fixed inset-x-0 top-0 z-50 w-full border-b border-border px-4 bg-background">
       <nav className="mx-auto flex max-w-7xl items-center py-2 gap-4">
         {/* Mobile Menu Button */}
         <Button
