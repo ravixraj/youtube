@@ -16,6 +16,7 @@ export const relations = defineRelations(schema, r => ({
       alias: 'subscriptions_channelId_users_id',
     }),
     playlists: r.many.playlists(),
+    playlistVideos: r.many.playlistVideos(),
     comments: r.many.comments(),
     likes: r.many.likes(),
   },
@@ -27,7 +28,7 @@ export const relations = defineRelations(schema, r => ({
     }),
     comments: r.many.comments(),
     likes: r.many.likes(),
-    playlists: r.many.playlists(),
+    playlistVideos: r.many.playlistVideos(),
   },
 
   tweets: {
@@ -56,8 +57,16 @@ export const relations = defineRelations(schema, r => ({
       from: r.playlists.userId,
       to: r.users.id,
     }),
+    playlistVideos: r.many.playlistVideos(),
+  },
+
+  playlistVideos: {
+    playlist: r.one.playlists({
+      from: r.playlistVideos.playlistId,
+      to: r.playlists.id,
+    }),
     video: r.one.videos({
-      from: r.playlists.videoId,
+      from: r.playlistVideos.videoId,
       to: r.videos.id,
     }),
   },

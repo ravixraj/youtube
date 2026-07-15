@@ -4,12 +4,10 @@ import { HTTP, HttpPhrase, HttpStatus } from '@/lib/http'
 import { zValidator } from '@/lib/zValidator'
 import { authMiddleware } from '@/middlewares/auth'
 import { db as database } from '@/db'
-import { playlists, videos } from '@/db/schema'
-import { and, eq } from 'drizzle-orm'
+import { playlists, playlistVideos } from '@/db/schema'
+import { and, asc, eq, sql } from 'drizzle-orm'
 
 const playlistIdParam = z.object({ playlistId: z.uuid('Invalid playlist ID') })
-
-const videoIdParam = z.object({ videoId: z.uuid('Invalid video ID') })
 
 const userIdParam = z.object({ userId: z.uuid('Invalid user ID') })
 
@@ -71,14 +69,15 @@ playlist.post('/', zValidator('json', createPlaylistSchema), async c => {
       id: playlists.id,
       name: playlists.name,
       description: playlists.description,
-      videoId: playlists.videoId,
       userId: playlists.userId,
       createdAt: playlists.createdAt,
       updatedAt: playlists.updatedAt,
     })
 
   return c.json(
-    HTTP.Response(HttpPhrase.CREATED, { newPlaylist }),
+    HTTP.Response(HttpPhrase.CREATED, {
+      newPlaylist: { ...newPlaylist, videos: [] },
+    }),
     HttpStatus.CREATED
   )
 })
@@ -88,15 +87,33 @@ playlist.get('/user/:userId', zValidator('param', userIdParam), async c => {
 
   const db = database(c.env.DATABASE_URL)
 
-  const playlists = await db.query.playlists.findMany({
-    where: {
-      userId,
+  const raw = await db.query.playlists.findMany({
+    where: { userId },
+    with: {
+      playlistVideos: {
+        with: {
+          video: {
+            columns: { id: true, title: true, thumbnail: true, duration: true },
+          },
+        },
+        orderBy: (pv, { asc }) => [asc(pv.position), asc(pv.createdAt)],
+      },
     },
   })
 
-  if (!playlists) {
+  if (!raw) {
     throw HTTP.Error(HttpStatus.NOT_FOUND, 'Playlists not found')
   }
+
+  const playlists = raw.map(p => ({
+    id: p.id,
+    name: p.name,
+    description: p.description,
+    userId: p.userId,
+    createdAt: p.createdAt,
+    updatedAt: p.updatedAt,
+    videos: p.playlistVideos.map(pv => pv.video),
+  }))
 
   return c.json(HTTP.Response(HttpPhrase.OK, { playlists }), HttpStatus.OK)
 })
@@ -107,15 +124,32 @@ playlist.get('/:playlistId', zValidator('param', playlistIdParam), async c => {
 
   const db = database(c.env.DATABASE_URL)
 
-  const playlist = await db.query.playlists.findFirst({
-    where: {
-      id: playlistId,
-      userId,
+  const raw = await db.query.playlists.findFirst({
+    where: { id: playlistId, userId },
+    with: {
+      playlistVideos: {
+        with: {
+          video: {
+            columns: { id: true, title: true, thumbnail: true, duration: true },
+          },
+        },
+        orderBy: (pv, { asc }) => [asc(pv.position), asc(pv.createdAt)],
+      },
     },
   })
 
-  if (!playlist) {
+  if (!raw) {
     throw HTTP.Error(HttpStatus.NOT_FOUND, 'Playlist not found')
+  }
+
+  const playlist = {
+    id: raw.id,
+    name: raw.name,
+    description: raw.description,
+    userId: raw.userId,
+    createdAt: raw.createdAt,
+    updatedAt: raw.updatedAt,
+    videos: raw.playlistVideos.map(pv => pv.video),
   }
 
   return c.json(HTTP.Response(HttpPhrase.OK, { playlist }), HttpStatus.OK)
@@ -140,27 +174,35 @@ playlist.patch(
       throw HTTP.Error(HttpStatus.NOT_FOUND, 'Playlist not found')
     }
 
-    if (existingPlaylist.videoId) {
-      throw HTTP.Error(HttpStatus.CONFLICT, 'Video already added to playlist')
+    const [existingEntry] = await db
+      .select()
+      .from(playlistVideos)
+      .where(
+        and(
+          eq(playlistVideos.playlistId, playlistId),
+          eq(playlistVideos.videoId, videoId)
+        )
+      )
+      .limit(1)
+
+    if (existingEntry) {
+      throw HTTP.Error(HttpStatus.CONFLICT, 'Video already in playlist')
     }
 
-    await db
-      .update(playlists)
-      .set({
-        videoId,
-      })
-      .where(and(eq(playlists.id, playlistId), eq(playlists.userId, userId)))
-      .returning({
-        id: playlists.id,
-        name: playlists.name,
-        description: playlists.description,
-        videoId: playlists.videoId,
-        userId: playlists.userId,
-        createdAt: playlists.createdAt,
-        updatedAt: playlists.updatedAt,
-      })
+    const rows = await db
+      .select({ position: sql<number>`count(*)::int` })
+      .from(playlistVideos)
+      .where(eq(playlistVideos.playlistId, playlistId))
 
-    return c.json(HTTP.Response(HttpPhrase.OK, { playlist }), HttpStatus.OK)
+    const position = rows[0]?.position ?? 0
+
+    await db.insert(playlistVideos).values({
+      playlistId,
+      videoId,
+      position,
+    })
+
+    return c.json(HTTP.Response(HttpPhrase.OK, null), HttpStatus.OK)
   }
 )
 
@@ -169,7 +211,7 @@ playlist.patch(
   zValidator('param', addVideoParam),
   async c => {
     const userId = c.get('user')
-    const { playlistId } = c.req.valid('param')
+    const { playlistId, videoId } = c.req.valid('param')
 
     const db = database(c.env.DATABASE_URL)
 
@@ -183,23 +225,16 @@ playlist.patch(
       throw HTTP.Error(HttpStatus.NOT_FOUND, 'Playlist not found')
     }
 
-    const [newPlaylist] = await db
-      .update(playlists)
-      .set({
-        videoId: null,
-      })
-      .where(and(eq(playlists.id, playlistId), eq(playlists.userId, userId)))
-      .returning({
-        id: playlists.id,
-        name: playlists.name,
-        description: playlists.description,
-        videoId: playlists.videoId,
-        userId: playlists.userId,
-        createdAt: playlists.createdAt,
-        updatedAt: playlists.updatedAt,
-      })
+    await db
+      .delete(playlistVideos)
+      .where(
+        and(
+          eq(playlistVideos.playlistId, playlistId),
+          eq(playlistVideos.videoId, videoId)
+        )
+      )
 
-    return c.json(HTTP.Response(HttpPhrase.OK, { newPlaylist }), HttpStatus.OK)
+    return c.json(HTTP.Response(HttpPhrase.OK, null), HttpStatus.OK)
   }
 )
 
@@ -212,13 +247,13 @@ playlist.delete(
 
     const db = database(c.env.DATABASE_URL)
 
-    const [playlist] = await db
+    const [existingPlaylist] = await db
       .select()
       .from(playlists)
       .where(and(eq(playlists.id, playlistId), eq(playlists.userId, userId)))
       .limit(1)
 
-    if (!playlist) {
+    if (!existingPlaylist) {
       throw HTTP.Error(HttpStatus.NOT_FOUND, 'Playlist not found')
     }
 
@@ -241,13 +276,13 @@ playlist.patch(
 
     const db = database(c.env.DATABASE_URL)
 
-    const [playlist] = await db
+    const [existingPlaylist] = await db
       .select()
       .from(playlists)
       .where(and(eq(playlists.id, playlistId), eq(playlists.userId, userId)))
       .limit(1)
 
-    if (!playlist) {
+    if (!existingPlaylist) {
       throw HTTP.Error(HttpStatus.NOT_FOUND, 'Playlist not found')
     }
 
@@ -263,7 +298,6 @@ playlist.patch(
         id: playlists.id,
         name: playlists.name,
         description: playlists.description,
-        videoId: playlists.videoId,
         userId: playlists.userId,
         createdAt: playlists.createdAt,
         updatedAt: playlists.updatedAt,

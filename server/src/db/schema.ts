@@ -72,12 +72,23 @@ export const subscriptions = pgTable(
 
 export const playlists = pgTable('playlists', {
   id: uuid().defaultRandom().primaryKey(),
-  name: varchar({ length: 30 }).unique().notNull(),
+  name: varchar({ length: 30 }).notNull(),
   description: varchar({ length: 100 }).notNull(),
-  videoId: uuid().references(() => videos.id, { onDelete: 'cascade' }),
   userId: uuid()
     .notNull()
     .references(() => users.id, { onDelete: 'cascade' }),
+  ...timestamps,
+})
+
+export const playlistVideos = pgTable('playlist_videos', {
+  id: uuid().defaultRandom().primaryKey(),
+  playlistId: uuid()
+    .notNull()
+    .references(() => playlists.id, { onDelete: 'cascade' }),
+  videoId: uuid()
+    .notNull()
+    .references(() => videos.id, { onDelete: 'cascade' }),
+  position: integer().default(0).notNull(),
   ...timestamps,
 })
 
@@ -115,9 +126,19 @@ export const likes = pgTable(
 type User = typeof users.$inferSelect
 type Video = typeof videos.$inferSelect
 type Playlist = typeof playlists.$inferSelect
+type PlaylistVideo = typeof playlistVideos.$inferSelect
 type Comment = typeof comments.$inferSelect
 type Subscription = typeof subscriptions.$inferSelect
 type Tweet = typeof tweets.$inferSelect
 type Like = typeof likes.$inferSelect
 
-export type { User, Video, Playlist, Comment, Subscription, Tweet, Like }
+export type {
+  User,
+  Video,
+  Playlist,
+  PlaylistVideo,
+  Comment,
+  Subscription,
+  Tweet,
+  Like,
+}
