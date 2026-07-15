@@ -287,15 +287,16 @@ export default function PlaylistsPage() {
                   >
                     Description
                   </label>
-                  <Textarea
-                    id="description"
-                    value={formData.description}
-                    onChange={(e) =>
-                      setFormData({ ...formData, description: e.target.value })
-                    }
-                    placeholder="Enter playlist description"
-                    rows={3}
-                  />
+                    <Textarea
+                      id="description"
+                      value={formData.description}
+                      onChange={(e) =>
+                        setFormData({ ...formData, description: e.target.value })
+                      }
+                      placeholder="Enter playlist description"
+                      rows={3}
+                      required
+                    />
                 </div>
                 <div className="flex gap-3 pt-2">
                   <Button type="submit" disabled={creating} className="flex-1">

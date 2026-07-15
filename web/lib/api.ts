@@ -88,12 +88,11 @@ export interface Comment {
 export interface Playlist {
   id: string;
   name: string;
-  description?: string;
-  videoId?: string;
+  description: string;
   userId: string;
   createdAt: string;
   updatedAt: string;
-  videos?: {
+  videos: {
     id: string;
     title: string;
     thumbnail?: string;
@@ -252,7 +251,7 @@ export const commentAPI = {
 
 // ─── Playlist API ─────────────────────────────────────────────────────
 
-const createPlaylistApi = (data: { name: string; description?: string }) =>
+const createPlaylistApi = (data: { name: string; description: string }) =>
   apiClient.post<ApiResponse<{ newPlaylist: Playlist }>>("/playlists", data);
 
 const updatePlaylistApi = (
